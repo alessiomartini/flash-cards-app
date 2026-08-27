@@ -1,0 +1,90 @@
+package com.lexi.flashcards.ui.home
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.lexi.flashcards.ui.rememberAppContainer
+
+@Composable
+fun HomeScreen(onStudyClick: () -> Unit) {
+    val container = rememberAppContainer()
+    val viewModel: HomeViewModel = viewModel(
+        factory = viewModelFactory { initializer { HomeViewModel(container.cardRepository) } },
+    )
+    val uiState by viewModel.uiState.collectAsState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        Text("Lexi", style = MaterialTheme.typography.headlineMedium)
+        Text(
+            "Vocabolario ed espressioni inglesi, ripasso a lungo termine con FSRS",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(
+                    if (uiState.dueCount > 0) "${uiState.dueCount} carte da ripassare oggi" else "Tutto ripassato!",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                Spacer(Modifier.height(16.dp))
+                Button(onClick = onStudyClick, enabled = uiState.dueCount > 0) {
+                    Text(if (uiState.dueCount > 0) "Studia ora" else "Nessuna carta in scadenza")
+                }
+            }
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            StatTile(label = "Carte totali", value = uiState.totalCount.toString(), modifier = Modifier.weight(1f))
+            StatTile(label = "Ripassi oggi", value = uiState.reviewsToday.toString(), modifier = Modifier.weight(1f))
+        }
+        StatTile(
+            label = if (uiState.streakDays == 1) "giorno di fila" else "giorni di fila",
+            value = uiState.streakDays.toString(),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+@Composable
+private fun StatTile(label: String, value: String, modifier: Modifier = Modifier) {
+    Card(modifier = modifier, shape = RoundedCornerShape(16.dp)) {
+        Box(modifier = Modifier.padding(16.dp)) {
+            Column {
+                Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(label, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+    }
+}
