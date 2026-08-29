@@ -6,15 +6,19 @@ import com.engvocab.app.data.db.CardEntity
 import com.engvocab.app.data.db.CardType
 import com.engvocab.app.data.repository.CardRepository
 import com.engvocab.app.data.repository.EnrichmentService
+import com.engvocab.app.data.repository.SettingsRepository
+import com.engvocab.core.model.TargetLanguage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class AddEditUiState(
     val front: String = "",
     val back: String = "",
+    val language: TargetLanguage = TargetLanguage.ENGLISH,
     val definition: String = "",
     val example: String = "",
     val partOfSpeech: String = "",
@@ -31,6 +35,7 @@ data class AddEditUiState(
 class AddEditCardViewModel(
     private val cardRepository: CardRepository,
     private val enrichmentService: EnrichmentService,
+    private val settingsRepository: SettingsRepository,
     private val cardId: Long?,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(AddEditUiState(isNew = cardId == null, isLoading = cardId != null))
@@ -39,16 +44,17 @@ class AddEditCardViewModel(
     private var loadedCard: CardEntity? = null
 
     init {
-        if (cardId != null) {
-            viewModelScope.launch {
+        viewModelScope.launch {
+            if (cardId != null) {
                 val card = cardRepository.getCard(cardId)
                 loadedCard = card
                 if (card != null) {
                     _uiState.value = AddEditUiState(
                         front = card.front,
                         back = card.back,
-                        definition = card.definitionEn.orEmpty(),
-                        example = card.exampleEn.orEmpty(),
+                        language = card.language,
+                        definition = card.definition.orEmpty(),
+                        example = card.example.orEmpty(),
                         partOfSpeech = card.partOfSpeech.orEmpty(),
                         cardType = card.cardType,
                         tags = card.tags,
@@ -58,12 +64,16 @@ class AddEditCardViewModel(
                 } else {
                     _uiState.update { it.copy(isLoading = false) }
                 }
+            } else {
+                val defaultLanguage = settingsRepository.selectedLanguage.first()
+                _uiState.update { it.copy(language = defaultLanguage) }
             }
         }
     }
 
     fun onFrontChange(value: String) = _uiState.update { it.copy(front = value) }
     fun onBackChange(value: String) = _uiState.update { it.copy(back = value) }
+    fun onLanguageChange(value: TargetLanguage) = _uiState.update { it.copy(language = value) }
     fun onDefinitionChange(value: String) = _uiState.update { it.copy(definition = value) }
     fun onExampleChange(value: String) = _uiState.update { it.copy(example = value) }
     fun onPartOfSpeechChange(value: String) = _uiState.update { it.copy(partOfSpeech = value) }
@@ -75,7 +85,7 @@ class AddEditCardViewModel(
         if (front.isEmpty()) return
         viewModelScope.launch {
             _uiState.update { it.copy(isEnriching = true) }
-            val enrichment = enrichmentService.enrich(front)
+            val enrichment = enrichmentService.enrich(front, uiState.value.language)
             _uiState.update {
                 it.copy(
                     isEnriching = false,
@@ -96,8 +106,9 @@ class AddEditCardViewModel(
             val toSave = base.copy(
                 front = state.front.trim(),
                 back = state.back.trim(),
-                definitionEn = state.definition.trim().takeIf { it.isNotEmpty() },
-                exampleEn = state.example.trim().takeIf { it.isNotEmpty() },
+                language = state.language,
+                definition = state.definition.trim().takeIf { it.isNotEmpty() },
+                example = state.example.trim().takeIf { it.isNotEmpty() },
                 partOfSpeech = state.partOfSpeech.trim().takeIf { it.isNotEmpty() },
                 cardType = state.cardType,
                 tags = state.tags.trim(),

@@ -6,7 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 
-@Database(entities = [CardEntity::class, ReviewLogEntity::class], version = 1, exportSchema = false)
+@Database(entities = [CardEntity::class, ReviewLogEntity::class], version = 2, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun cardDao(): CardDao
@@ -22,7 +22,12 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "engvocab.db",
-                ).build().also { instance = it }
+                )
+                    // Pre-release app, no installed base with real data yet - simplest to reset
+                    // on schema changes (v2 added multi-language support) rather than write
+                    // migrations for data nobody has yet.
+                    .fallbackToDestructiveMigration()
+                    .build().also { instance = it }
             }
     }
 }

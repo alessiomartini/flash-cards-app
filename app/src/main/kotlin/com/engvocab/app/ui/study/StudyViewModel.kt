@@ -2,12 +2,14 @@ package com.engvocab.app.ui.study
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.engvocab.core.model.Rating
 import com.engvocab.app.data.db.CardEntity
 import com.engvocab.app.data.repository.CardRepository
+import com.engvocab.app.data.repository.SettingsRepository
+import com.engvocab.core.model.Rating
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -23,7 +25,10 @@ data class StudyUiState(
     val remaining: Int get() = (queue.size - currentIndex).coerceAtLeast(0)
 }
 
-class StudyViewModel(private val cardRepository: CardRepository) : ViewModel() {
+class StudyViewModel(
+    private val cardRepository: CardRepository,
+    private val settingsRepository: SettingsRepository,
+) : ViewModel() {
     private val _uiState = MutableStateFlow(StudyUiState())
     val uiState: StateFlow<StudyUiState> = _uiState.asStateFlow()
 
@@ -34,7 +39,8 @@ class StudyViewModel(private val cardRepository: CardRepository) : ViewModel() {
     fun loadQueue() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val due = cardRepository.getDueCards()
+            val language = settingsRepository.selectedLanguage.first()
+            val due = cardRepository.getDueCards(language)
             _uiState.update {
                 it.copy(
                     queue = due,

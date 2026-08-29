@@ -1,18 +1,26 @@
 package com.engvocab.core.importer
 
+import com.engvocab.core.model.TargetLanguage
+
 /**
  * Parses generic front/back(/example) exports: CSV or TSV, with or without a header row.
- * This is what covers a Duocards export - Duocards doesn't document a stable export schema,
- * so rather than hard-coding one exact layout, this auto-detects the delimiter and tolerates
- * an optional header, taking column 1 as the term, column 2 as the translation/definition,
- * and an optional column 3 as an example sentence.
+ * This is what covers a Duocards export. Duocards' actual "word list" export has no
+ * translation column at all - just the term and a learning-status column (e.g. Italian
+ * locale: "Parola;Livello" with values like "In apprendimento" / "Imparata completamente").
+ * When a status/level column is detected, its value becomes [CardDraft.knownAlready]
+ * instead of a translation, and the back is left empty for auto-fill. Anything else is
+ * treated as a plain front/back(/example) export, auto-detecting the delimiter.
  */
 object DelimitedTextParser {
 
     private val HEADER_HINTS = setOf(
         "front", "back", "term", "word", "translation", "definition", "meaning",
-        "question", "answer", "expression", "fronte", "retro", "traduzione", "significato",
+        "question", "answer", "expression", "fronte", "retro", "traduzione", "significato", "parola",
     )
+
+    private val LEVEL_HEADER_HINTS = setOf("livello", "level", "stato", "status", "progress", "box")
+
+    private val KNOWN_STATUS_HINTS = listOf("completa", "master", "learned", "known", "done")
 
     fun sniffDelimiter(sampleLine: String): Char {
         val candidates = listOf('\t', ';', ',')
@@ -65,23 +73,33 @@ object DelimitedTextParser {
         return rows.filter { r -> r.any { it.isNotBlank() } }
     }
 
-    /** Parses a generic front/back export, auto-detecting delimiter and an optional header row. */
-    fun parseCards(text: String, source: ImportSource): List<CardDraft> {
+    /** Parses a generic front/back export, auto-detecting delimiter, header row, and word-list-vs-back-column shape. */
+    fun parseCards(text: String, source: ImportSource, language: TargetLanguage = TargetLanguage.ENGLISH): List<CardDraft> {
         if (text.isBlank()) return emptyList()
         val firstLine = text.lineSequence().firstOrNull { it.isNotBlank() } ?: return emptyList()
         val delimiter = sniffDelimiter(firstLine)
         var rows = tokenize(text, delimiter)
         if (rows.isEmpty()) return emptyList()
 
-        val firstRowLower = rows.first().map { it.trim().lowercase() }
-        if (firstRowLower.any { it in HEADER_HINTS }) rows = rows.drop(1)
+        val headerRowLower = rows.first().map { it.trim().lowercase() }
+        val hasHeader = headerRowLower.any { it in HEADER_HINTS || it in LEVEL_HEADER_HINTS }
+        val isLevelColumn = hasHeader && headerRowLower.getOrNull(1) in LEVEL_HEADER_HINTS
+        if (hasHeader) rows = rows.drop(1)
 
         return rows.mapNotNull { cols ->
             val front = cols.getOrNull(0)?.trim().orEmpty()
-            val back = cols.getOrNull(1)?.trim().orEmpty()
-            if (front.isEmpty() || back.isEmpty()) return@mapNotNull null
-            val example = cols.getOrNull(2)?.trim()?.takeIf { it.isNotEmpty() }
-            CardDraft(front = front, back = back, example = example, source = source)
+            if (front.isEmpty()) return@mapNotNull null
+
+            if (isLevelColumn) {
+                val status = cols.getOrNull(1)?.trim().orEmpty()
+                val known = KNOWN_STATUS_HINTS.any { status.contains(it, ignoreCase = true) }
+                CardDraft(front = front, back = "", source = source, language = language, knownAlready = known)
+            } else {
+                val back = cols.getOrNull(1)?.trim().orEmpty()
+                if (back.isEmpty()) return@mapNotNull null
+                val example = cols.getOrNull(2)?.trim()?.takeIf { it.isNotEmpty() }
+                CardDraft(front = front, back = back, example = example, source = source, language = language)
+            }
         }
     }
 }

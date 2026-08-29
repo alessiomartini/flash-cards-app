@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.engvocab.core.importer.ImportSource
 import com.engvocab.core.model.FsrsCardState
+import com.engvocab.core.model.TargetLanguage
 
 /**
  * A single flashcard, persisted with its full FSRS scheduling state embedded directly
@@ -15,8 +16,10 @@ data class CardEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val front: String,
     val back: String,
-    val definitionEn: String? = null,
-    val exampleEn: String? = null,
+    /** The language [front] is written in - what deck/study-session this card belongs to. */
+    val language: TargetLanguage = TargetLanguage.ENGLISH,
+    val definition: String? = null,
+    val example: String? = null,
     val partOfSpeech: String? = null,
     val cardType: CardType = CardType.WORD,
     /** Comma-separated tags, e.g. "kindle:Atomic Habits,business". */

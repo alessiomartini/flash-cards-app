@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.engvocab.app.ui.components.LanguageDropdownField
 import com.engvocab.app.ui.rememberAppContainer
 import kotlin.math.roundToInt
 
@@ -30,9 +31,20 @@ fun SettingsScreen() {
     )
     val desiredRetention by viewModel.desiredRetention.collectAsState()
     val autoEnrichEnabled by viewModel.autoEnrichEnabled.collectAsState()
+    val selectedLanguage by viewModel.selectedLanguage.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
         Text("Settings", style = MaterialTheme.typography.headlineMedium)
+
+        Column {
+            Text("Study language", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Which language's cards Home, Study, and Cards show. New cards default to this language.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            LanguageDropdownField(selected = selectedLanguage, onSelected = viewModel::setSelectedLanguage)
+        }
 
         Column {
             Text("Desired retention", style = MaterialTheme.typography.titleMedium)

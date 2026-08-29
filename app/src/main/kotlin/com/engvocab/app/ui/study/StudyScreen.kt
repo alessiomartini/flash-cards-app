@@ -38,7 +38,7 @@ import kotlin.math.roundToInt
 fun StudyScreen(onFinished: () -> Unit) {
     val container = rememberAppContainer()
     val viewModel: StudyViewModel = viewModel(
-        factory = viewModelFactory { initializer { StudyViewModel(container.cardRepository) } },
+        factory = viewModelFactory { initializer { StudyViewModel(container.cardRepository, container.settingsRepository) } },
     )
     val uiState by viewModel.uiState.collectAsState()
 
@@ -64,7 +64,7 @@ fun StudyScreen(onFinished: () -> Unit) {
                     FlashCard(
                         front = card.front,
                         back = card.back,
-                        example = card.exampleEn,
+                        example = card.example,
                         isFlipped = uiState.isFlipped,
                         onClick = viewModel::flip,
                     )

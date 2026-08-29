@@ -1,7 +1,9 @@
 package com.engvocab.app.data.repository
 
 import com.engvocab.core.fsrs.FsrsScheduler
+import com.engvocab.core.model.FsrsCardState
 import com.engvocab.core.model.Rating
+import com.engvocab.core.model.TargetLanguage
 import com.engvocab.app.data.db.CardDao
 import com.engvocab.app.data.db.CardEntity
 import com.engvocab.app.data.db.ReviewLogDao
@@ -18,15 +20,18 @@ class CardRepository(
     private val reviewLogDao: ReviewLogDao,
     private val settingsRepository: SettingsRepository,
 ) {
-    fun observeAllCards(): Flow<List<CardEntity>> = cardDao.observeAll()
+    fun observeAllCards(language: TargetLanguage): Flow<List<CardEntity>> = cardDao.observeAllByLanguage(language)
 
-    fun observeTotalCount(): Flow<Int> = cardDao.observeTotalCount()
+    fun observeTotalCount(language: TargetLanguage): Flow<Int> = cardDao.observeTotalCountByLanguage(language)
 
-    fun searchCards(query: String): Flow<List<CardEntity>> = cardDao.search(query)
+    fun searchCards(query: String, language: TargetLanguage): Flow<List<CardEntity>> =
+        cardDao.searchByLanguage(query, language)
 
-    suspend fun getDueCards(now: Long = System.currentTimeMillis()): List<CardEntity> = cardDao.getDue(now)
+    suspend fun getDueCards(language: TargetLanguage, now: Long = System.currentTimeMillis()): List<CardEntity> =
+        cardDao.getDueByLanguage(language, now)
 
-    suspend fun countDue(now: Long = System.currentTimeMillis()): Int = cardDao.countDue(now)
+    suspend fun countDue(language: TargetLanguage, now: Long = System.currentTimeMillis()): Int =
+        cardDao.countDueByLanguage(language, now)
 
     suspend fun addCard(card: CardEntity): Long = cardDao.insert(card)
 
@@ -36,7 +41,8 @@ class CardRepository(
 
     suspend fun deleteCard(card: CardEntity) = cardDao.delete(card)
 
-    suspend fun cardExists(front: String): Boolean = cardDao.existsWithFront(front)
+    suspend fun cardExists(front: String, language: TargetLanguage): Boolean =
+        cardDao.existsWithFrontInLanguage(front, language)
 
     suspend fun getCard(id: Long): CardEntity? = cardDao.getById(id)
 
@@ -46,6 +52,20 @@ class CardRepository(
     /** Predicted interval for each of the 4 ratings, for the "Again <10m · Good 3d · Easy 7d" preview row. */
     suspend fun previewIntervals(card: CardEntity, now: Long = System.currentTimeMillis()): Map<Rating, Long> =
         scheduler().previewIntervals(card.fsrs, now)
+
+    /**
+     * Starting FSRS state for an imported card. Cards flagged [knownAlready] (e.g. Duocards'
+     * "fully learned" status) get two synthetic "Good" reviews applied - enough to walk a
+     * brand-new card through both default learning steps into long-term review - so they
+     * start scheduled like an already-mastered card instead of making the learner redo the
+     * whole brand-new-card ramp-up.
+     */
+    suspend fun initialFsrsState(knownAlready: Boolean, now: Long = System.currentTimeMillis()): FsrsCardState {
+        if (!knownAlready) return FsrsCardState()
+        val fsrsScheduler = scheduler()
+        val afterFirstGood = fsrsScheduler.review(FsrsCardState(), Rating.GOOD, now).card
+        return fsrsScheduler.review(afterFirstGood, Rating.GOOD, now).card
+    }
 
     suspend fun reviewCard(card: CardEntity, rating: Rating, now: Long = System.currentTimeMillis()): CardEntity {
         val result = scheduler().review(card.fsrs, rating, now)

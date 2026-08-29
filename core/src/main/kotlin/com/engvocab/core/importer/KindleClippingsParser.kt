@@ -1,5 +1,7 @@
 package com.engvocab.core.importer
 
+import com.engvocab.core.model.TargetLanguage
+
 /**
  * Parses a Kindle "My Clippings.txt" file (found at the root of the Kindle's `documents`
  * folder when connected over USB) into card drafts.
@@ -35,9 +37,9 @@ object KindleClippingsParser {
         val content: String,
     )
 
-    fun parse(text: String): List<CardDraft> {
+    fun parse(text: String, language: TargetLanguage = TargetLanguage.ENGLISH): List<CardDraft> {
         val entries = splitEntries(text).mapNotNull(::parseEntry)
-        return dedupe(pairHighlightsWithNotes(entries))
+        return dedupe(pairHighlightsWithNotes(entries, language))
     }
 
     private fun splitEntries(text: String): List<String> =
@@ -67,7 +69,7 @@ object KindleClippingsParser {
         return RawClipping(title, type, locationStart, locationEnd, content)
     }
 
-    private fun pairHighlightsWithNotes(entries: List<RawClipping>): List<CardDraft> {
+    private fun pairHighlightsWithNotes(entries: List<RawClipping>, language: TargetLanguage): List<CardDraft> {
         val drafts = mutableListOf<CardDraft>()
         var i = 0
         while (i < entries.size) {
@@ -87,6 +89,7 @@ object KindleClippingsParser {
                             back = next!!.content,
                             source = ImportSource.KINDLE,
                             sourceLabel = entry.title,
+                            language = language,
                         ),
                     )
                     i += 2
@@ -99,6 +102,7 @@ object KindleClippingsParser {
                         back = "",
                         source = ImportSource.KINDLE,
                         sourceLabel = entry.title,
+                        language = language,
                     ),
                 )
             }

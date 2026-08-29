@@ -5,6 +5,7 @@ import com.engvocab.app.data.db.AppDatabase
 import com.engvocab.app.data.repository.CardRepository
 import com.engvocab.app.data.repository.EnrichmentService
 import com.engvocab.app.data.repository.SettingsRepository
+import com.engvocab.app.data.staged.StagedImportReader
 
 /** Minimal hand-rolled service locator - no DI framework needed for an app this size. */
 class AppContainer(context: Context) {
@@ -13,4 +14,5 @@ class AppContainer(context: Context) {
     val settingsRepository = SettingsRepository(context)
     val cardRepository = CardRepository(database.cardDao(), database.reviewLogDao(), settingsRepository)
     val enrichmentService = EnrichmentService()
+    val stagedImportReader = StagedImportReader(context)
 }

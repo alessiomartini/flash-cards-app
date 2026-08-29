@@ -3,6 +3,7 @@ package com.engvocab.app.data.db
 import androidx.room.TypeConverter
 import com.engvocab.core.importer.ImportSource
 import com.engvocab.core.model.CardState
+import com.engvocab.core.model.TargetLanguage
 
 class Converters {
     @TypeConverter
@@ -22,4 +23,10 @@ class Converters {
 
     @TypeConverter
     fun stringToCardType(value: String): CardType = CardType.valueOf(value)
+
+    @TypeConverter
+    fun targetLanguageToString(language: TargetLanguage): String = language.name
+
+    @TypeConverter
+    fun stringToTargetLanguage(value: String): TargetLanguage = TargetLanguage.valueOf(value)
 }

@@ -39,6 +39,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.engvocab.app.data.db.CardType
+import com.engvocab.app.ui.components.LanguageDropdownField
 import com.engvocab.app.ui.rememberAppContainer
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,7 +48,9 @@ fun AddEditCardScreen(cardId: Long?, onDone: () -> Unit, onBack: () -> Unit) {
     val container = rememberAppContainer()
     val viewModel: AddEditCardViewModel = viewModel(
         factory = viewModelFactory {
-            initializer { AddEditCardViewModel(container.cardRepository, container.enrichmentService, cardId) }
+            initializer {
+                AddEditCardViewModel(container.cardRepository, container.enrichmentService, container.settingsRepository, cardId)
+            }
         },
     )
     val uiState by viewModel.uiState.collectAsState()
@@ -76,10 +79,12 @@ fun AddEditCardScreen(cardId: Long?, onDone: () -> Unit, onBack: () -> Unit) {
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            LanguageDropdownField(selected = uiState.language, onSelected = viewModel::onLanguageChange)
+
             OutlinedTextField(
                 value = uiState.front,
                 onValueChange = viewModel::onFrontChange,
-                label = { Text("Term / expression (English)") },
+                label = { Text("Term / expression") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
@@ -108,7 +113,7 @@ fun AddEditCardScreen(cardId: Long?, onDone: () -> Unit, onBack: () -> Unit) {
             OutlinedTextField(
                 value = uiState.definition,
                 onValueChange = viewModel::onDefinitionChange,
-                label = { Text("English definition (optional)") },
+                label = { Text("Definition (optional)") },
                 modifier = Modifier.fillMaxWidth(),
             )
 

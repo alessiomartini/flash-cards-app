@@ -1,7 +1,9 @@
 package com.engvocab.core.importer
 
+import com.engvocab.core.model.TargetLanguage
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class DelimitedTextParserTest {
 
@@ -60,5 +62,51 @@ class DelimitedTextParserTest {
     fun `blank input yields no cards`() {
         assertEquals(emptyList(), DelimitedTextParser.parseCards("", ImportSource.DUOCARDS))
         assertEquals(emptyList(), DelimitedTextParser.parseCards("   \n  \n", ImportSource.DUOCARDS))
+    }
+
+    @Test
+    fun `real Duocards word-list export has no translation column, only a level`() {
+        val text = """
+            Parola;Livello
+            slow-moving;In apprendimento
+            drive a hard bargain;In apprendimento
+            to live the life;Imparata completamente
+            traffic;Imparata completamente
+        """.trimIndent()
+
+        val cards = DelimitedTextParser.parseCards(text, ImportSource.DUOCARDS, TargetLanguage.ENGLISH)
+
+        assertEquals(4, cards.size)
+        cards.forEach { assertEquals("", it.back) }
+
+        assertEquals("slow-moving", cards[0].front)
+        assertEquals(false, cards[0].knownAlready)
+        assertEquals("drive a hard bargain", cards[1].front)
+        assertEquals(false, cards[1].knownAlready)
+        assertEquals("to live the life", cards[2].front)
+        assertTrue(cards[2].knownAlready)
+        assertEquals("traffic", cards[3].front)
+        assertTrue(cards[3].knownAlready)
+    }
+
+    @Test
+    fun `word-list export tags every card with the requested language`() {
+        val text = "Parola;Livello\nder Tisch;Imparata completamente\n"
+
+        val cards = DelimitedTextParser.parseCards(text, ImportSource.DUOCARDS, TargetLanguage.GERMAN)
+
+        assertEquals(1, cards.size)
+        assertEquals(TargetLanguage.GERMAN, cards[0].language)
+    }
+
+    @Test
+    fun `recognizes an English-locale level header too`() {
+        val text = "Word;Status\nubiquitous;Learning\nresilient;Mastered\n"
+
+        val cards = DelimitedTextParser.parseCards(text, ImportSource.DUOCARDS)
+
+        assertEquals(2, cards.size)
+        assertEquals(false, cards[0].knownAlready)
+        assertTrue(cards[1].knownAlready)
     }
 }

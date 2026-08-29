@@ -1,5 +1,6 @@
 package com.engvocab.core.importer
 
+import com.engvocab.core.model.TargetLanguage
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -133,5 +134,22 @@ class KindleClippingsParserTest {
     @Test
     fun `blank input yields no cards`() {
         assertTrue(KindleClippingsParser.parse("").isEmpty())
+    }
+
+    @Test
+    fun `tags every card with the requested language`() {
+        val text = """
+            Sample Book Title (Author Name)
+            - Your Highlight on page 20 | location 300-300 | Added on Monday, January 5, 2026 9:00:00 AM
+
+            der Hund
+
+            ==========
+        """.trimIndent()
+
+        val cards = KindleClippingsParser.parse(text, TargetLanguage.GERMAN)
+
+        assertEquals(1, cards.size)
+        assertEquals(TargetLanguage.GERMAN, cards[0].language)
     }
 }

@@ -1,6 +1,7 @@
 package com.engvocab.app.ui.cards
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -33,16 +34,18 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.engvocab.app.data.db.CardEntity
+import com.engvocab.app.ui.components.LanguageChip
 import com.engvocab.app.ui.rememberAppContainer
 
 @Composable
 fun CardListScreen(onAddCard: () -> Unit, onEditCard: (Long) -> Unit) {
     val container = rememberAppContainer()
     val viewModel: CardListViewModel = viewModel(
-        factory = viewModelFactory { initializer { CardListViewModel(container.cardRepository) } },
+        factory = viewModelFactory { initializer { CardListViewModel(container.cardRepository, container.settingsRepository) } },
     )
     val cards by viewModel.cards.collectAsState()
     val query by viewModel.queryText.collectAsState()
+    val language by viewModel.language.collectAsState()
 
     Scaffold(
         floatingActionButton = {
@@ -52,10 +55,16 @@ fun CardListScreen(onAddCard: () -> Unit, onEditCard: (Long) -> Unit) {
         },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                LanguageChip(selected = language, onSelected = viewModel::setLanguage)
+            }
             OutlinedTextField(
                 value = query,
                 onValueChange = viewModel::setQuery,
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 placeholder = { Text("Search...") },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                 singleLine = true,

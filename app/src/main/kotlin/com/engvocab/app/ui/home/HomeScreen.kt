@@ -25,13 +25,14 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.engvocab.app.ui.components.LanguageChip
 import com.engvocab.app.ui.rememberAppContainer
 
 @Composable
 fun HomeScreen(onStudyClick: () -> Unit) {
     val container = rememberAppContainer()
     val viewModel: HomeViewModel = viewModel(
-        factory = viewModelFactory { initializer { HomeViewModel(container.cardRepository) } },
+        factory = viewModelFactory { initializer { HomeViewModel(container.cardRepository, container.settingsRepository) } },
     )
     val uiState by viewModel.uiState.collectAsState()
 
@@ -41,9 +42,16 @@ fun HomeScreen(onStudyClick: () -> Unit) {
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        Text("EngVocab", style = MaterialTheme.typography.headlineMedium)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("EngVocab", style = MaterialTheme.typography.headlineMedium)
+            LanguageChip(selected = uiState.language, onSelected = viewModel::setLanguage)
+        }
         Text(
-            "English vocabulary and expressions, long-term retention with FSRS",
+            "Vocabulary and expressions, long-term retention with FSRS",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -70,7 +78,7 @@ fun HomeScreen(onStudyClick: () -> Unit) {
             StatTile(label = "Reviews today", value = uiState.reviewsToday.toString(), modifier = Modifier.weight(1f))
         }
         StatTile(
-            label = if (uiState.streakDays == 1) "day streak" else "day streak",
+            label = "day streak",
             value = uiState.streakDays.toString(),
             modifier = Modifier.fillMaxWidth(),
         )

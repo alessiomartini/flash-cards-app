@@ -19,3 +19,4 @@ rootProject.name = "EngVocab"
 
 include(":app")
 include(":core")
+include(":cli")
