@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "com.lexi.flashcards"
+    namespace = "com.engvocab.app"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.lexi.flashcards"
+        applicationId = "com.engvocab.app"
         minSdk = 26
         targetSdk = 35
         versionCode = 1

@@ -45,25 +45,25 @@ jobs:
         run: ./gradlew :app:assembleDebug --no-daemon
 
       - name: Stage APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk lexi-debug.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk engvocab-debug.apk
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: lexi-debug-apk
-          path: lexi-debug.apk
+          name: engvocab-debug-apk
+          path: engvocab-debug.apk
 
       - name: Publish/refresh downloadable release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
-          name: "Lexi - ultima build"
+          name: "EngVocab - latest build"
           body: |
-            APK generato automaticamente dall'ultimo commit su `${{ github.ref_name }}` (${{ github.sha }}).
+            APK automatically built from the latest commit on `${{ github.ref_name }}` (${{ github.sha }}).
 
-            Per installarlo sul telefono: scarica `lexi-debug.apk` qui sotto, aprilo dal telefono
-            e conferma l'installazione (la prima volta Android chiede di abilitare
-            "consenti da questa fonte" per l'app che hai usato per scaricarlo).
-          files: lexi-debug.apk
+            To install on your phone: download `engvocab-debug.apk` below, open it on your phone,
+            and confirm the install (the first time, Android will ask you to allow installs from
+            whichever app you used to download it).
+          files: engvocab-debug.apk
           prerelease: true
           make_latest: true

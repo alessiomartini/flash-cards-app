@@ -15,7 +15,7 @@ dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
 }
 
-rootProject.name = "Lexi"
+rootProject.name = "EngVocab"
 
 include(":app")
 include(":core")
