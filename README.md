@@ -4,6 +4,29 @@ Un'app Android di flashcard per ampliare il vocabolario inglese - parole, phrasa
 modi di dire ed espressioni - senza pubblicità e senza limiti sul numero di carte.
 Locale, gratuita, open source.
 
+## Come installarla sul telefono (senza Android Studio)
+
+Ogni push su questo branch fa partire automaticamente un workflow **GitHub Actions**
+(`.github/workflows/build-apk.yml`) che compila l'app e pubblica l'APK come **Release**
+del repository:
+
+1. Vai sulla pagina del repo su GitHub, sezione **Releases** (o `.../releases/tag/latest`).
+2. Scarica `lexi-debug.apk` direttamente dal telefono (dal browser, o da un client GitHub).
+3. Aprilo: Android chiederà una volta di abilitare "consenti installazioni da questa fonte"
+   per l'app che hai usato per scaricarlo (es. Chrome) - è normale per un APK non
+   distribuito dal Play Store, non è un problema di sicurezza dell'app in sé.
+4. Installa. Da quel momento l'app vive sul telefono come una qualsiasi altra: FSRS,
+   import, tutto locale, nessuna connessione richiesta con questo repository.
+
+Non è né un sito web né una PWA: è un vero APK Android nativo. GitHub in questo flusso
+serve solo come "fabbrica" che compila il codice - una volta installata, l'app non dipende
+più da GitHub in alcun modo. Ogni nuova build (nuovo push) aggiorna la stessa release
+`latest` con signature stabile (vedi `keystore/debug.keystore`), quindi puoi reinstallare
+sopra la versione precedente senza disinstallare prima.
+
+Se preferisci compilarla tu con Android Studio invece che scaricare l'APK pronto, vedi la
+sezione "Come compilare" più sotto.
+
 ## Il metodo di memorizzazione: FSRS
 
 La ricerca sulla memoria a lungo termine converge su due tecniche: **retrieval practice**

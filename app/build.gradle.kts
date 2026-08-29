@@ -20,6 +20,19 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // A fixed, committed debug keystore (instead of the machine-local default one) so every
+    // debug build - on your computer or in CI - is signed identically. Without this, each CI
+    // run would generate its own throwaway debug key and you'd have to uninstall the app
+    // before installing every new build.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("../keystore/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false

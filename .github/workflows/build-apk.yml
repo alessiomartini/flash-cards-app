@@ -1,0 +1,69 @@
+name: Build APK
+
+on:
+  push:
+    branches:
+      - main
+      - claude/flashcard-english-vocab-app-yh1tzi
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle*', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Run core module tests
+        run: ./gradlew :core:test --no-daemon
+
+      - name: Build debug APK
+        run: ./gradlew :app:assembleDebug --no-daemon
+
+      - name: Stage APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk lexi-debug.apk
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lexi-debug-apk
+          path: lexi-debug.apk
+
+      - name: Publish/refresh downloadable release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Lexi - ultima build"
+          body: |
+            APK generato automaticamente dall'ultimo commit su `${{ github.ref_name }}` (${{ github.sha }}).
+
+            Per installarlo sul telefono: scarica `lexi-debug.apk` qui sotto, aprilo dal telefono
+            e conferma l'installazione (la prima volta Android chiede di abilitare
+            "consenti da questa fonte" per l'app che hai usato per scaricarlo).
+          files: lexi-debug.apk
+          prerelease: true
+          make_latest: true
