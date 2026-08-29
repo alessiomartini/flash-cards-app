@@ -41,6 +41,9 @@ jobs:
       - name: Run core module tests
         run: ./gradlew :core:test --no-daemon
 
+      - name: Build CLI import tool
+        run: ./gradlew :cli:build --no-daemon
+
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --no-daemon
 
