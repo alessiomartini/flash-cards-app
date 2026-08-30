@@ -13,7 +13,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -33,7 +35,14 @@ fun SyncScreen() {
     val container = rememberAppContainer()
     val viewModel: SyncViewModel = viewModel(
         factory = viewModelFactory {
-            initializer { SyncViewModel(container.syncRepository, container.settingsRepository) }
+            initializer {
+                SyncViewModel(
+                    container.syncRepository,
+                    container.cardRepository,
+                    container.enrichmentService,
+                    container.settingsRepository,
+                )
+            }
         },
     )
     val uiState by viewModel.uiState.collectAsState()
@@ -63,7 +72,7 @@ fun SyncScreen() {
                 Spacer(Modifier.height(16.dp))
                 Button(
                     onClick = viewModel::syncNow,
-                    enabled = !uiState.isSyncing,
+                    enabled = !uiState.isBusy,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     if (uiState.isSyncing) {
@@ -84,6 +93,49 @@ fun SyncScreen() {
 
         uiState.errorMessage?.let { message ->
             Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+        }
+
+        Column {
+            Text("Fill in missing translations", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Looks up a translation, a short example sentence showing the word in context, and " +
+                    "a definition for every card in the selected language that still has no back - " +
+                    "e.g. a batch just synced from a Duocards export, which never carries translations. " +
+                    "Runs one card at a time using the same free services as the per-card Auto-fill " +
+                    "button, so a large batch can take a while and may hit the free daily quota.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = viewModel::fillMissingTranslations,
+                enabled = !uiState.isBusy,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                if (uiState.isAutoFilling) {
+                    Text("Filling in... ${uiState.autoFillDone}/${uiState.autoFillTotal}")
+                } else {
+                    Text("Fill in missing translations")
+                }
+            }
+            if (uiState.isAutoFilling && uiState.autoFillTotal > 0) {
+                Spacer(Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    progress = { uiState.autoFillDone.toFloat() / uiState.autoFillTotal },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            uiState.autoFillResult?.let { result ->
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    if (result.stillMissing > 0) {
+                        "${result.filled} filled in, ${result.stillMissing} still missing (no translation found - try again later)."
+                    } else {
+                        "${result.filled} filled in."
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
         }
     }
 }

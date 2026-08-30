@@ -52,6 +52,10 @@ class CardRepository(
 
     suspend fun getCard(id: Long): CardEntity? = cardDao.getById(id)
 
+    /** Cards in [language] still missing a translation - the bulk auto-fill target on the Sync screen. */
+    suspend fun cardsMissingTranslation(language: TargetLanguage): List<CardEntity> =
+        cardDao.getCardsWithBlankBack(language)
+
     private suspend fun scheduler(): FsrsScheduler =
         FsrsScheduler(desiredRetention = settingsRepository.desiredRetention.first())
 

@@ -53,4 +53,8 @@ interface CardDao {
     /** Every card synced from D1 (i.e. not added manually on the phone) - used to detect cloud-side deletions. */
     @Query("SELECT * FROM cards WHERE remoteId IS NOT NULL")
     suspend fun getAllWithRemoteId(): List<CardEntity>
+
+    /** Cards still missing a translation - e.g. freshly synced from a Duocards export with no back column. */
+    @Query("SELECT * FROM cards WHERE language = :language AND back = ''")
+    suspend fun getCardsWithBlankBack(language: TargetLanguage): List<CardEntity>
 }
