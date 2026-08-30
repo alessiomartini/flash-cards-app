@@ -46,4 +46,11 @@ interface CardDao {
 
     @Query("SELECT EXISTS(SELECT 1 FROM cards WHERE language = :language AND LOWER(front) = LOWER(:front))")
     suspend fun existsWithFrontInLanguage(front: String, language: TargetLanguage): Boolean
+
+    @Query("SELECT * FROM cards WHERE remoteId = :remoteId LIMIT 1")
+    suspend fun getByRemoteId(remoteId: Long): CardEntity?
+
+    /** Every card synced from D1 (i.e. not added manually on the phone) - used to detect cloud-side deletions. */
+    @Query("SELECT * FROM cards WHERE remoteId IS NOT NULL")
+    suspend fun getAllWithRemoteId(): List<CardEntity>
 }

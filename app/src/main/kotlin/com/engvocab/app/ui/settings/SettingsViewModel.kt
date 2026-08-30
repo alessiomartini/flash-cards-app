@@ -19,6 +19,15 @@ class SettingsViewModel(private val settingsRepository: SettingsRepository) : Vi
     val selectedLanguage: StateFlow<TargetLanguage> = settingsRepository.selectedLanguage
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TargetLanguage.ENGLISH)
 
+    val cloudflareAccountId: StateFlow<String> = settingsRepository.cloudflareAccountId
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
+
+    val cloudflareDatabaseId: StateFlow<String> = settingsRepository.cloudflareDatabaseId
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
+
+    val cloudflareApiToken: StateFlow<String> = settingsRepository.cloudflareApiToken
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
+
     fun setDesiredRetention(value: Double) {
         viewModelScope.launch { settingsRepository.setDesiredRetention(value) }
     }
@@ -29,5 +38,17 @@ class SettingsViewModel(private val settingsRepository: SettingsRepository) : Vi
 
     fun setSelectedLanguage(language: TargetLanguage) {
         viewModelScope.launch { settingsRepository.setSelectedLanguage(language) }
+    }
+
+    fun setCloudflareAccountId(value: String) {
+        viewModelScope.launch { settingsRepository.setCloudflareAccountId(value) }
+    }
+
+    fun setCloudflareDatabaseId(value: String) {
+        viewModelScope.launch { settingsRepository.setCloudflareDatabaseId(value) }
+    }
+
+    fun setCloudflareApiToken(value: String) {
+        viewModelScope.launch { settingsRepository.setCloudflareApiToken(value) }
     }
 }

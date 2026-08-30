@@ -11,4 +11,5 @@
 *.aab
 /app/build/
 /core/build/
+/cli/build/
 .kotlin/

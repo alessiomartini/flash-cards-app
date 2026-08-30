@@ -27,6 +27,8 @@ data class CardEntity(
     val source: ImportSource = ImportSource.MANUAL,
     val sourceLabel: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
+    /** The D1 `words.id` this card was synced from, or null for a card added manually on the phone. */
+    val remoteId: Long? = null,
     @Embedded val fsrs: FsrsCardState = FsrsCardState(),
 ) {
     val tagList: List<String>

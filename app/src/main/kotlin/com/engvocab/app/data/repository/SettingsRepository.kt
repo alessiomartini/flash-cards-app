@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.engvocab.core.model.TargetLanguage
@@ -17,6 +18,10 @@ class SettingsRepository(private val context: Context) {
         val DESIRED_RETENTION = doublePreferencesKey("desired_retention")
         val AUTO_ENRICH_ENABLED = booleanPreferencesKey("auto_enrich_enabled")
         val SELECTED_LANGUAGE = stringPreferencesKey("selected_language")
+        val CF_ACCOUNT_ID = stringPreferencesKey("cf_account_id")
+        val CF_DATABASE_ID = stringPreferencesKey("cf_database_id")
+        val CF_API_TOKEN = stringPreferencesKey("cf_api_token")
+        val LAST_SYNCED_AT = longPreferencesKey("last_synced_at")
     }
 
     /** Target recall probability the FSRS scheduler aims for (0.7-0.99). Higher = more, closer-together reviews. */
@@ -41,5 +46,29 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setSelectedLanguage(language: TargetLanguage) {
         context.dataStore.edit { it[Keys.SELECTED_LANGUAGE] = language.name }
+    }
+
+    /** Cloudflare account ID, D1 database UUID, and an API token with D1:Edit - set once in Settings. */
+    val cloudflareAccountId: Flow<String> = context.dataStore.data.map { it[Keys.CF_ACCOUNT_ID] ?: "" }
+    val cloudflareDatabaseId: Flow<String> = context.dataStore.data.map { it[Keys.CF_DATABASE_ID] ?: "" }
+    val cloudflareApiToken: Flow<String> = context.dataStore.data.map { it[Keys.CF_API_TOKEN] ?: "" }
+
+    /** Epoch millis of the last successful sync, or null if never synced. */
+    val lastSyncedAt: Flow<Long?> = context.dataStore.data.map { it[Keys.LAST_SYNCED_AT] }
+
+    suspend fun setCloudflareAccountId(value: String) {
+        context.dataStore.edit { it[Keys.CF_ACCOUNT_ID] = value.trim() }
+    }
+
+    suspend fun setCloudflareDatabaseId(value: String) {
+        context.dataStore.edit { it[Keys.CF_DATABASE_ID] = value.trim() }
+    }
+
+    suspend fun setCloudflareApiToken(value: String) {
+        context.dataStore.edit { it[Keys.CF_API_TOKEN] = value.trim() }
+    }
+
+    suspend fun setLastSyncedAt(value: Long) {
+        context.dataStore.edit { it[Keys.LAST_SYNCED_AT] = value }
     }
 }

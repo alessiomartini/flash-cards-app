@@ -6,7 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 
-@Database(entities = [CardEntity::class, ReviewLogEntity::class], version = 2, exportSchema = false)
+@Database(entities = [CardEntity::class, ReviewLogEntity::class], version = 3, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun cardDao(): CardDao
@@ -24,8 +24,8 @@ abstract class AppDatabase : RoomDatabase() {
                     "engvocab.db",
                 )
                     // Pre-release app, no installed base with real data yet - simplest to reset
-                    // on schema changes (v2 added multi-language support) rather than write
-                    // migrations for data nobody has yet.
+                    // on schema changes (v2 added multi-language support, v3 added remoteId for
+                    // cloud sync) rather than write migrations for data nobody has yet.
                     .fallbackToDestructiveMigration()
                     .build().also { instance = it }
             }

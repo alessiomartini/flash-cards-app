@@ -2,10 +2,10 @@ package com.engvocab.app.ui
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Style
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -25,9 +25,9 @@ import androidx.navigation.navArgument
 import com.engvocab.app.ui.cards.AddEditCardScreen
 import com.engvocab.app.ui.cards.CardListScreen
 import com.engvocab.app.ui.home.HomeScreen
-import com.engvocab.app.ui.importer.ImportScreen
 import com.engvocab.app.ui.settings.SettingsScreen
 import com.engvocab.app.ui.study.StudyScreen
+import com.engvocab.app.ui.sync.SyncScreen
 
 private object Routes {
     const val HOME = "home"
@@ -35,7 +35,7 @@ private object Routes {
     const val CARDS = "cards"
     const val ADD_CARD = "add_card"
     const val EDIT_CARD = "edit_card/{cardId}"
-    const val IMPORT = "import"
+    const val SYNC = "sync"
     const val SETTINGS = "settings"
 
     fun editCard(cardId: Long) = "edit_card/$cardId"
@@ -46,7 +46,7 @@ private data class BottomTab(val route: String, val label: String, val icon: Ima
 private val bottomTabs = listOf(
     BottomTab(Routes.HOME, "Home", Icons.Filled.Home),
     BottomTab(Routes.CARDS, "Cards", Icons.Filled.Style),
-    BottomTab(Routes.IMPORT, "Import", Icons.Filled.FileUpload),
+    BottomTab(Routes.SYNC, "Sync", Icons.Filled.Sync),
     BottomTab(Routes.SETTINGS, "Settings", Icons.Filled.Settings),
 )
 
@@ -113,16 +113,8 @@ fun EngVocabApp() {
                     onBack = { navController.popBackStack() },
                 )
             }
-            composable(Routes.IMPORT) {
-                ImportScreen(
-                    onDone = {
-                        navController.navigate(Routes.CARDS) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                )
+            composable(Routes.SYNC) {
+                SyncScreen()
             }
             composable(Routes.SETTINGS) {
                 SettingsScreen()

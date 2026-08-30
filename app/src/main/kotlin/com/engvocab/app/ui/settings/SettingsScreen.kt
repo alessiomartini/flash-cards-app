@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -15,6 +16,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -32,9 +34,44 @@ fun SettingsScreen() {
     val desiredRetention by viewModel.desiredRetention.collectAsState()
     val autoEnrichEnabled by viewModel.autoEnrichEnabled.collectAsState()
     val selectedLanguage by viewModel.selectedLanguage.collectAsState()
+    val cloudflareAccountId by viewModel.cloudflareAccountId.collectAsState()
+    val cloudflareDatabaseId by viewModel.cloudflareDatabaseId.collectAsState()
+    val cloudflareApiToken by viewModel.cloudflareApiToken.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
         Text("Settings", style = MaterialTheme.typography.headlineMedium)
+
+        Column {
+            Text("Cloud sync", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Connects the Sync tab to your Cloudflare D1 database. See the README's " +
+                    "\"Importing your vocabulary\" section for where to find these values.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedTextField(
+                value = cloudflareAccountId,
+                onValueChange = viewModel::setCloudflareAccountId,
+                label = { Text("Cloudflare account ID") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            )
+            OutlinedTextField(
+                value = cloudflareDatabaseId,
+                onValueChange = viewModel::setCloudflareDatabaseId,
+                label = { Text("D1 database ID") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            )
+            OutlinedTextField(
+                value = cloudflareApiToken,
+                onValueChange = viewModel::setCloudflareApiToken,
+                label = { Text("API token") },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            )
+        }
 
         Column {
             Text("Study language", style = MaterialTheme.typography.titleMedium)
