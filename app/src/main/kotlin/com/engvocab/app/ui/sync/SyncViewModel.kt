@@ -87,6 +87,8 @@ class SyncViewModel(
                             definition = card.definition ?: enrichment.definition,
                             example = card.example ?: enrichment.example,
                             partOfSpeech = card.partOfSpeech ?: enrichment.partOfSpeech,
+                            phonetic = card.phonetic ?: enrichment.phonetic,
+                            audioUrl = card.audioUrl ?: enrichment.audioUrl,
                         ),
                     )
                     filled++

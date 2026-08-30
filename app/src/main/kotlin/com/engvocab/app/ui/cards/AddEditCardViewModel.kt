@@ -2,6 +2,7 @@ package com.engvocab.app.ui.cards
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.engvocab.app.audio.AudioPlayer
 import com.engvocab.app.data.db.CardEntity
 import com.engvocab.app.data.db.CardType
 import com.engvocab.app.data.repository.CardRepository
@@ -22,6 +23,8 @@ data class AddEditUiState(
     val definition: String = "",
     val example: String = "",
     val partOfSpeech: String = "",
+    val phonetic: String = "",
+    val audioUrl: String? = null,
     val cardType: CardType = CardType.WORD,
     val tags: String = "",
     val isNew: Boolean = true,
@@ -36,6 +39,7 @@ class AddEditCardViewModel(
     private val cardRepository: CardRepository,
     private val enrichmentService: EnrichmentService,
     private val settingsRepository: SettingsRepository,
+    private val audioPlayer: AudioPlayer,
     private val cardId: Long?,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(AddEditUiState(isNew = cardId == null, isLoading = cardId != null))
@@ -56,6 +60,8 @@ class AddEditCardViewModel(
                         definition = card.definition.orEmpty(),
                         example = card.example.orEmpty(),
                         partOfSpeech = card.partOfSpeech.orEmpty(),
+                        phonetic = card.phonetic.orEmpty(),
+                        audioUrl = card.audioUrl,
                         cardType = card.cardType,
                         tags = card.tags,
                         isNew = false,
@@ -77,6 +83,7 @@ class AddEditCardViewModel(
     fun onDefinitionChange(value: String) = _uiState.update { it.copy(definition = value) }
     fun onExampleChange(value: String) = _uiState.update { it.copy(example = value) }
     fun onPartOfSpeechChange(value: String) = _uiState.update { it.copy(partOfSpeech = value) }
+    fun onPhoneticChange(value: String) = _uiState.update { it.copy(phonetic = value) }
     fun onCardTypeChange(value: CardType) = _uiState.update { it.copy(cardType = value) }
     fun onTagsChange(value: String) = _uiState.update { it.copy(tags = value) }
 
@@ -93,9 +100,15 @@ class AddEditCardViewModel(
                     definition = it.definition.ifBlank { enrichment.definition.orEmpty() },
                     example = it.example.ifBlank { enrichment.example.orEmpty() },
                     partOfSpeech = it.partOfSpeech.ifBlank { enrichment.partOfSpeech.orEmpty() },
+                    phonetic = it.phonetic.ifBlank { enrichment.phonetic.orEmpty() },
+                    audioUrl = it.audioUrl ?: enrichment.audioUrl,
                 )
             }
         }
+    }
+
+    fun playPronunciation() {
+        uiState.value.audioUrl?.let(audioPlayer::play)
     }
 
     fun save() {
@@ -110,11 +123,17 @@ class AddEditCardViewModel(
                 definition = state.definition.trim().takeIf { it.isNotEmpty() },
                 example = state.example.trim().takeIf { it.isNotEmpty() },
                 partOfSpeech = state.partOfSpeech.trim().takeIf { it.isNotEmpty() },
+                phonetic = state.phonetic.trim().takeIf { it.isNotEmpty() },
+                audioUrl = state.audioUrl,
                 cardType = state.cardType,
                 tags = state.tags.trim(),
             )
             if (loadedCard == null) cardRepository.addCard(toSave) else cardRepository.updateCard(toSave)
             _uiState.update { it.copy(isSaved = true) }
         }
+    }
+
+    override fun onCleared() {
+        audioPlayer.stop()
     }
 }

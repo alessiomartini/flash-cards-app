@@ -12,9 +12,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -38,7 +42,9 @@ import kotlin.math.roundToInt
 fun StudyScreen(onFinished: () -> Unit) {
     val container = rememberAppContainer()
     val viewModel: StudyViewModel = viewModel(
-        factory = viewModelFactory { initializer { StudyViewModel(container.cardRepository, container.settingsRepository) } },
+        factory = viewModelFactory {
+            initializer { StudyViewModel(container.cardRepository, container.settingsRepository, container.audioPlayer) }
+        },
     )
     val uiState by viewModel.uiState.collectAsState()
 
@@ -65,8 +71,11 @@ fun StudyScreen(onFinished: () -> Unit) {
                         front = card.front,
                         back = card.back,
                         example = card.example,
+                        phonetic = card.phonetic,
+                        hasAudio = card.audioUrl != null,
                         isFlipped = uiState.isFlipped,
                         onClick = viewModel::flip,
+                        onPlayPronunciation = viewModel::playPronunciation,
                     )
                 }
             }
@@ -89,8 +98,11 @@ private fun FlashCard(
     front: String,
     back: String,
     example: String?,
+    phonetic: String?,
+    hasAudio: Boolean,
     isFlipped: Boolean,
     onClick: () -> Unit,
+    onPlayPronunciation: () -> Unit,
 ) {
     Card(
         modifier = Modifier
@@ -108,6 +120,22 @@ private fun FlashCard(
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,
                     )
+                    if (!flipped && (!phonetic.isNullOrBlank() || hasAudio)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (!phonetic.isNullOrBlank()) {
+                                Text(
+                                    phonetic,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            if (hasAudio) {
+                                IconButton(onClick = onPlayPronunciation) {
+                                    Icon(Icons.Filled.VolumeUp, contentDescription = "Play pronunciation")
+                                }
+                            }
+                        }
+                    }
                     if (flipped && !example.isNullOrBlank()) {
                         Spacer(Modifier.height(16.dp))
                         Text(

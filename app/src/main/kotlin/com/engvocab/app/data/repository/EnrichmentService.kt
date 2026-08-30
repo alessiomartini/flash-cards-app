@@ -10,9 +10,12 @@ data class Enrichment(
     val definition: String?,
     val example: String?,
     val partOfSpeech: String?,
+    val phonetic: String?,
+    val audioUrl: String?,
 ) {
     val isEmpty: Boolean
-        get() = translation == null && definition == null && example == null && partOfSpeech == null
+        get() = translation == null && definition == null && example == null &&
+            partOfSpeech == null && phonetic == null && audioUrl == null
 }
 
 class EnrichmentService(
@@ -28,6 +31,8 @@ class EnrichmentService(
             definition = dictionary?.definition,
             example = dictionary?.example,
             partOfSpeech = dictionary?.partOfSpeech,
+            phonetic = dictionary?.phonetic,
+            audioUrl = dictionary?.audioUrl,
         )
     }
 }

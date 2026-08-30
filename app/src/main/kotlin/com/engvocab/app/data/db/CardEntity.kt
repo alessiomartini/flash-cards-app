@@ -21,6 +21,10 @@ data class CardEntity(
     val definition: String? = null,
     val example: String? = null,
     val partOfSpeech: String? = null,
+    /** IPA transcription, e.g. "/ˈdɪzməl/" - from the free dictionary lookup. */
+    val phonetic: String? = null,
+    /** URL of a pronunciation audio clip (mp3), when the dictionary provides one. */
+    val audioUrl: String? = null,
     val cardType: CardType = CardType.WORD,
     /** Comma-separated tags, e.g. "kindle:Atomic Habits,business". */
     val tags: String = "",

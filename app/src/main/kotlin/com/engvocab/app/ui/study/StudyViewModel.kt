@@ -2,6 +2,7 @@ package com.engvocab.app.ui.study
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.engvocab.app.audio.AudioPlayer
 import com.engvocab.app.data.db.CardEntity
 import com.engvocab.app.data.repository.CardRepository
 import com.engvocab.app.data.repository.SettingsRepository
@@ -28,6 +29,7 @@ data class StudyUiState(
 class StudyViewModel(
     private val cardRepository: CardRepository,
     private val settingsRepository: SettingsRepository,
+    private val audioPlayer: AudioPlayer,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(StudyUiState())
     val uiState: StateFlow<StudyUiState> = _uiState.asStateFlow()
@@ -66,14 +68,23 @@ class StudyViewModel(
         _uiState.update { it.copy(isFlipped = !it.isFlipped) }
     }
 
+    fun playPronunciation() {
+        uiState.value.currentCard?.audioUrl?.let(audioPlayer::play)
+    }
+
     fun rate(rating: Rating) {
         val card = uiState.value.currentCard ?: return
         viewModelScope.launch {
+            audioPlayer.stop()
             cardRepository.reviewCard(card, rating)
             val nextIndex = uiState.value.currentIndex + 1
             val done = nextIndex >= uiState.value.queue.size
             _uiState.update { it.copy(currentIndex = nextIndex, isFlipped = false, isSessionComplete = done) }
             if (!done) loadPreview()
         }
+    }
+
+    override fun onCleared() {
+        audioPlayer.stop()
     }
 }

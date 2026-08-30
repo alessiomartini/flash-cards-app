@@ -24,10 +24,12 @@ object FreeDictionaryResponseParser {
         val word = entry.word?.takeIf { it.isNotBlank() } ?: return null
         val meaning = entry.meanings?.firstOrNull { !it.definitions.isNullOrEmpty() }
         val definitionEntry = meaning?.definitions?.firstOrNull()
+        val phoneticEntry = entry.phonetics?.firstOrNull { !it.text.isNullOrBlank() || !it.audio.isNullOrBlank() }
 
         return DictionaryLookupResult(
             word = word,
-            phonetic = entry.phonetic?.takeIf { it.isNotBlank() },
+            phonetic = entry.phonetic?.takeIf { it.isNotBlank() } ?: phoneticEntry?.text?.takeIf { it.isNotBlank() },
+            audioUrl = entry.phonetics?.firstOrNull { !it.audio.isNullOrBlank() }?.audio,
             partOfSpeech = meaning?.partOfSpeech,
             definition = definitionEntry?.definition,
             example = definitionEntry?.example,
@@ -39,7 +41,14 @@ object FreeDictionaryResponseParser {
 private data class FreeDictionaryEntry(
     val word: String? = null,
     val phonetic: String? = null,
+    val phonetics: List<FreeDictionaryPhonetic>? = null,
     val meanings: List<FreeDictionaryMeaning>? = null,
+)
+
+@Serializable
+private data class FreeDictionaryPhonetic(
+    val text: String? = null,
+    val audio: String? = null,
 )
 
 @Serializable

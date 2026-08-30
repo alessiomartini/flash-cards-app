@@ -1,6 +1,7 @@
 package com.engvocab.app.di
 
 import android.content.Context
+import com.engvocab.app.audio.AudioPlayer
 import com.engvocab.app.data.db.AppDatabase
 import com.engvocab.app.data.repository.CardRepository
 import com.engvocab.app.data.repository.EnrichmentService
@@ -15,4 +16,5 @@ class AppContainer(context: Context) {
     val cardRepository = CardRepository(database.cardDao(), database.reviewLogDao(), settingsRepository)
     val enrichmentService = EnrichmentService()
     val syncRepository = SyncRepository(cardRepository, settingsRepository)
+    val audioPlayer = AudioPlayer()
 }

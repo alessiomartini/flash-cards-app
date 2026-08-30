@@ -12,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
@@ -49,7 +50,13 @@ fun AddEditCardScreen(cardId: Long?, onDone: () -> Unit, onBack: () -> Unit) {
     val viewModel: AddEditCardViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
-                AddEditCardViewModel(container.cardRepository, container.enrichmentService, container.settingsRepository, cardId)
+                AddEditCardViewModel(
+                    container.cardRepository,
+                    container.enrichmentService,
+                    container.settingsRepository,
+                    container.audioPlayer,
+                    cardId,
+                )
             }
         },
     )
@@ -131,6 +138,21 @@ fun AddEditCardScreen(cardId: Long?, onDone: () -> Unit, onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = uiState.phonetic,
+                    onValueChange = viewModel::onPhoneticChange,
+                    label = { Text("Phonetic (IPA, optional)") },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                )
+                if (uiState.audioUrl != null) {
+                    IconButton(onClick = viewModel::playPronunciation) {
+                        Icon(Icons.Filled.VolumeUp, contentDescription = "Play pronunciation")
+                    }
+                }
+            }
 
             CardTypeDropdown(selected = uiState.cardType, onSelected = viewModel::onCardTypeChange)
 

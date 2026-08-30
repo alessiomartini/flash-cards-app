@@ -44,6 +44,27 @@ class FreeDictionaryResponseParserTest {
     }
 
     @Test
+    fun `picks the first phonetics entry with a non-blank audio url`() {
+        val json = """
+            [
+              {
+                "word": "dismal",
+                "phonetics": [
+                  { "text": "/ˈdɪzməl/", "audio": "" },
+                  { "text": "/ˈdɪzməl/", "audio": "https://api.dictionaryapi.dev/media/pronunciations/en/dismal-us.mp3" }
+                ],
+                "meanings": [ { "partOfSpeech": "adjective", "definitions": [ { "definition": "Causing gloom." } ] } ]
+              }
+            ]
+        """.trimIndent()
+
+        val result = FreeDictionaryResponseParser.parse(json)
+
+        assertEquals("/ˈdɪzməl/", result?.phonetic)
+        assertEquals("https://api.dictionaryapi.dev/media/pronunciations/en/dismal-us.mp3", result?.audioUrl)
+    }
+
+    @Test
     fun `returns null for the not-found error object`() {
         val json = """
             {
