@@ -53,6 +53,7 @@ class StudyViewModel(
                 )
             }
             loadPreview()
+            playPronunciation()
         }
     }
 
@@ -80,7 +81,10 @@ class StudyViewModel(
             val nextIndex = uiState.value.currentIndex + 1
             val done = nextIndex >= uiState.value.queue.size
             _uiState.update { it.copy(currentIndex = nextIndex, isFlipped = false, isSessionComplete = done) }
-            if (!done) loadPreview()
+            if (!done) {
+                loadPreview()
+                playPronunciation()
+            }
         }
     }
 

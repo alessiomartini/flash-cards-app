@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.engvocab.app.ui.components.icon
 import com.engvocab.app.ui.rememberAppContainer
 import com.engvocab.core.model.Rating
 import kotlin.math.roundToInt
@@ -73,6 +74,7 @@ fun StudyScreen(onFinished: () -> Unit) {
                         example = card.example,
                         phonetic = card.phonetic,
                         hasAudio = card.audioUrl != null,
+                        icon = card.icon(),
                         isFlipped = uiState.isFlipped,
                         onClick = viewModel::flip,
                         onPlayPronunciation = viewModel::playPronunciation,
@@ -100,6 +102,7 @@ private fun FlashCard(
     example: String?,
     phonetic: String?,
     hasAudio: Boolean,
+    icon: String,
     isFlipped: Boolean,
     onClick: () -> Unit,
     onPlayPronunciation: () -> Unit,
@@ -114,6 +117,10 @@ private fun FlashCard(
         Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
             AnimatedContent(targetState = isFlipped, label = "flip") { flipped ->
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    if (!flipped) {
+                        Text(icon, style = MaterialTheme.typography.displayMedium)
+                        Spacer(Modifier.height(8.dp))
+                    }
                     Text(
                         text = if (flipped) back else front,
                         style = MaterialTheme.typography.headlineMedium,

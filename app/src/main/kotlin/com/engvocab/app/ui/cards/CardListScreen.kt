@@ -35,6 +35,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.engvocab.app.data.db.CardEntity
 import com.engvocab.app.ui.components.LanguageChip
+import com.engvocab.app.ui.components.icon
 import com.engvocab.app.ui.rememberAppContainer
 
 @Composable
@@ -103,6 +104,7 @@ private fun CardRow(card: CardEntity, onClick: () -> Unit, onDelete: () -> Unit)
             modifier = Modifier.fillMaxWidth().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Text(card.icon(), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(end = 8.dp))
             Column(
                 modifier = Modifier
                     .weight(1f)
