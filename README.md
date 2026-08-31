@@ -20,13 +20,28 @@ Every push to this branch automatically triggers a **GitHub Actions** workflow
    local, no connection to this repository required.
 
 It's neither a website nor a PWA: it's a real, native Android APK. GitHub in this flow is
-just the "factory" that compiles the code - once installed, the app no longer depends on
-GitHub in any way. Every new build (new push) refreshes the same `latest` release with a
-stable signature (see `keystore/debug.keystore`), so you can install right over the
-previous version without uninstalling first.
+just the "factory" that compiles the code - the app works fully offline once installed.
+Every new build (new push) refreshes the same `latest` release with a stable signature
+(see `keystore/debug.keystore`), so you can install right over the previous version
+without uninstalling first.
 
 If you'd rather build it yourself with Android Studio instead of downloading the ready
 APK, see "Building it yourself" below.
+
+### Updating it
+
+After the first install, you don't need to repeat the steps above for every new build:
+**Settings > Updates** has a toggle (on by default) that makes the app check GitHub for a
+newer build on its own, download it, and prompt you to install it - no browser or manual
+download needed. There's also a "Check now" button for an immediate check. Android still
+requires you to confirm the final "Install app?" system dialog yourself; that step can't
+be automated away for an app distributed outside the Play Store. The very first time, you
+may also need to grant EngVocab permission to install apps (Settings will prompt for this
+if it's missing).
+
+CI stamps every build's version code with its GitHub Actions run number and publishes it
+as a small `engvocab-version.txt` file alongside the APK on the `latest` release; that's
+what the in-app checker compares against its own `BuildConfig.VERSION_CODE`.
 
 ## The memorization method: FSRS
 

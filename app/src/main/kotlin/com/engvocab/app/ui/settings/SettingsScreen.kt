@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
@@ -21,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.engvocab.app.BuildConfig
 import com.engvocab.app.ui.components.LanguageDropdownField
 import com.engvocab.app.ui.rememberAppContainer
 import kotlin.math.roundToInt
@@ -29,7 +32,7 @@ import kotlin.math.roundToInt
 fun SettingsScreen() {
     val container = rememberAppContainer()
     val viewModel: SettingsViewModel = viewModel(
-        factory = viewModelFactory { initializer { SettingsViewModel(container.settingsRepository) } },
+        factory = viewModelFactory { initializer { SettingsViewModel(container.settingsRepository, container.updateService) } },
     )
     val desiredRetention by viewModel.desiredRetention.collectAsState()
     val autoEnrichEnabled by viewModel.autoEnrichEnabled.collectAsState()
@@ -37,6 +40,8 @@ fun SettingsScreen() {
     val cloudflareAccountId by viewModel.cloudflareAccountId.collectAsState()
     val cloudflareDatabaseId by viewModel.cloudflareDatabaseId.collectAsState()
     val cloudflareApiToken by viewModel.cloudflareApiToken.collectAsState()
+    val autoCheckForUpdates by viewModel.autoCheckForUpdates.collectAsState()
+    val updateCheckState by viewModel.updateCheckState.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
         Text("Settings", style = MaterialTheme.typography.headlineMedium)
@@ -119,6 +124,57 @@ fun SettingsScreen() {
         }
 
         Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Updates", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "There's no Play Store listing, so EngVocab updates itself from its own " +
+                            "GitHub build. When on, it checks in the background and downloads new " +
+                            "builds automatically - Android still requires you to tap \"Install\" " +
+                            "on the final confirmation, that step can't be skipped.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(checked = autoCheckForUpdates, onCheckedChange = viewModel::setAutoCheckForUpdates)
+            }
+            Text(
+                "Current version: ${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.padding(top = 8.dp),
+            ) {
+                OutlinedButton(
+                    onClick = viewModel::checkForUpdates,
+                    enabled = updateCheckState !is UpdateCheckState.Checking && updateCheckState !is UpdateCheckState.Downloading,
+                ) {
+                    Text("Check now")
+                }
+                UpdateStatusText(updateCheckState)
+            }
+            when (val state = updateCheckState) {
+                is UpdateCheckState.Available -> Button(
+                    onClick = { viewModel.installUpdate(state.info) },
+                    modifier = Modifier.padding(top = 8.dp),
+                ) { Text("Download & install build ${state.info.versionCode}") }
+                is UpdateCheckState.NeedsInstallPermission -> OutlinedButton(
+                    onClick = viewModel::openInstallPermissionSettings,
+                    modifier = Modifier.padding(top = 8.dp),
+                ) { Text("Allow EngVocab to install apps") }
+                else -> Unit
+            }
+        }
+
+        Column {
             Text("How memorization works", style = MaterialTheme.typography.titleMedium)
             Text(
                 "EngVocab uses FSRS (Free Spaced Repetition Scheduler), the most effective spaced " +
@@ -129,5 +185,21 @@ fun SettingsScreen() {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+    }
+}
+
+@Composable
+private fun UpdateStatusText(state: UpdateCheckState) {
+    val text = when (state) {
+        UpdateCheckState.Idle -> null
+        UpdateCheckState.Checking -> "Checking…"
+        UpdateCheckState.UpToDate -> "You're up to date"
+        is UpdateCheckState.Available -> "Update available"
+        is UpdateCheckState.Downloading -> "Downloading…"
+        is UpdateCheckState.NeedsInstallPermission -> "Permission needed to install"
+        is UpdateCheckState.Failed -> "Check failed: ${state.message}"
+    }
+    if (text != null) {
+        Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

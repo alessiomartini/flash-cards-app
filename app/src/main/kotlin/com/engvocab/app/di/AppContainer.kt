@@ -7,6 +7,7 @@ import com.engvocab.app.data.repository.CardRepository
 import com.engvocab.app.data.repository.EnrichmentService
 import com.engvocab.app.data.repository.SettingsRepository
 import com.engvocab.app.data.sync.SyncRepository
+import com.engvocab.app.update.UpdateService
 
 /** Minimal hand-rolled service locator - no DI framework needed for an app this size. */
 class AppContainer(context: Context) {
@@ -17,4 +18,5 @@ class AppContainer(context: Context) {
     val enrichmentService = EnrichmentService()
     val syncRepository = SyncRepository(cardRepository, settingsRepository)
     val audioPlayer = AudioPlayer()
+    val updateService = UpdateService(context)
 }

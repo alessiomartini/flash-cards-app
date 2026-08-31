@@ -15,6 +15,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -32,9 +33,12 @@ import com.engvocab.app.ui.rememberAppContainer
 fun HomeScreen(onStudyClick: () -> Unit) {
     val container = rememberAppContainer()
     val viewModel: HomeViewModel = viewModel(
-        factory = viewModelFactory { initializer { HomeViewModel(container.cardRepository, container.settingsRepository) } },
+        factory = viewModelFactory {
+            initializer { HomeViewModel(container.cardRepository, container.settingsRepository, container.updateService) }
+        },
     )
     val uiState by viewModel.uiState.collectAsState()
+    val updateBanner by viewModel.updateBanner.collectAsState()
 
     Column(
         modifier = Modifier
@@ -55,6 +59,25 @@ fun HomeScreen(onStudyClick: () -> Unit) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+
+        if (updateBanner == UpdateBanner.NEEDS_INSTALL_PERMISSION) {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        "An update was downloaded, but EngVocab needs your permission to install apps.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                    Row(modifier = Modifier.padding(top = 8.dp)) {
+                        TextButton(onClick = viewModel::openInstallPermissionSettings) { Text("Allow") }
+                        TextButton(onClick = viewModel::dismissUpdateBanner) { Text("Dismiss") }
+                    }
+                }
+            }
+        }
 
         Card(
             shape = RoundedCornerShape(20.dp),

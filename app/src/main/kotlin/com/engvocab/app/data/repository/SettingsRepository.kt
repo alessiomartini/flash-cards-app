@@ -22,6 +22,8 @@ class SettingsRepository(private val context: Context) {
         val CF_DATABASE_ID = stringPreferencesKey("cf_database_id")
         val CF_API_TOKEN = stringPreferencesKey("cf_api_token")
         val LAST_SYNCED_AT = longPreferencesKey("last_synced_at")
+        val AUTO_CHECK_UPDATES = booleanPreferencesKey("auto_check_updates")
+        val LAST_UPDATE_CHECK_AT = longPreferencesKey("last_update_check_at")
     }
 
     /** Target recall probability the FSRS scheduler aims for (0.7-0.99). Higher = more, closer-together reviews. */
@@ -70,5 +72,19 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setLastSyncedAt(value: Long) {
         context.dataStore.edit { it[Keys.LAST_SYNCED_AT] = value }
+    }
+
+    /** Whether the app should silently check for (and install) newer builds on its own. */
+    val autoCheckForUpdates: Flow<Boolean> = context.dataStore.data.map { it[Keys.AUTO_CHECK_UPDATES] ?: true }
+
+    /** Epoch millis of the last update check, or null if never checked - used to throttle auto-checks. */
+    val lastUpdateCheckAt: Flow<Long?> = context.dataStore.data.map { it[Keys.LAST_UPDATE_CHECK_AT] }
+
+    suspend fun setAutoCheckForUpdates(value: Boolean) {
+        context.dataStore.edit { it[Keys.AUTO_CHECK_UPDATES] = value }
+    }
+
+    suspend fun setLastUpdateCheckAt(value: Long) {
+        context.dataStore.edit { it[Keys.LAST_UPDATE_CHECK_AT] = value }
     }
 }
