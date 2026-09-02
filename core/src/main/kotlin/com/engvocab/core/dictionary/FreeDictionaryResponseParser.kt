@@ -29,12 +29,19 @@ object FreeDictionaryResponseParser {
         return DictionaryLookupResult(
             word = word,
             phonetic = entry.phonetic?.takeIf { it.isNotBlank() } ?: phoneticEntry?.text?.takeIf { it.isNotBlank() },
-            audioUrl = entry.phonetics?.firstOrNull { !it.audio.isNullOrBlank() }?.audio,
+            audioUrl = entry.phonetics?.firstOrNull { !it.audio.isNullOrBlank() }?.audio?.let(::withScheme),
             partOfSpeech = meaning?.partOfSpeech,
             definition = definitionEntry?.definition,
             example = definitionEntry?.example,
         )
     }
+
+    /**
+     * dictionaryapi.dev sometimes serves audio as a protocol-relative URL (e.g.
+     * "//ssl.gstatic.com/…mp3") instead of a full one - fine in a browser, but MediaPlayer has no
+     * base scheme to resolve it against and fails silently. Assume https for those.
+     */
+    private fun withScheme(url: String): String = if (url.startsWith("//")) "https:$url" else url
 }
 
 @Serializable

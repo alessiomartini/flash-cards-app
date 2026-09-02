@@ -17,6 +17,6 @@ class AppContainer(context: Context) {
     val cardRepository = CardRepository(database.cardDao(), database.reviewLogDao(), settingsRepository)
     val enrichmentService = EnrichmentService()
     val syncRepository = SyncRepository(cardRepository, settingsRepository)
-    val audioPlayer = AudioPlayer()
+    val audioPlayer = AudioPlayer(context)
     val updateService = UpdateService(context)
 }

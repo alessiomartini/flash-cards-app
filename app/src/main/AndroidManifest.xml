@@ -5,6 +5,14 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <!-- Without this, Android 11+'s package-visibility restrictions make TextToSpeech unable to
+         find any engine to bind to, so the on-device pronunciation fallback fails silently. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
     <application
         android:name=".EngVocabApplication"
         android:allowBackup="true"

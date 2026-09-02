@@ -65,6 +65,28 @@ class FreeDictionaryResponseParserTest {
     }
 
     @Test
+    fun `adds https to a protocol-relative audio url`() {
+        val json = """
+            [
+              {
+                "word": "elephant",
+                "phonetics": [
+                  { "text": "/ˈɛlɪfənt/", "audio": "//ssl.gstatic.com/dictionary/static/sounds/oxford/elephant--_gb_1.mp3" }
+                ],
+                "meanings": [ { "partOfSpeech": "noun", "definitions": [ { "definition": "A large mammal." } ] } ]
+              }
+            ]
+        """.trimIndent()
+
+        val result = FreeDictionaryResponseParser.parse(json)
+
+        assertEquals(
+            "https://ssl.gstatic.com/dictionary/static/sounds/oxford/elephant--_gb_1.mp3",
+            result?.audioUrl,
+        )
+    }
+
+    @Test
     fun `returns null for the not-found error object`() {
         val json = """
             {

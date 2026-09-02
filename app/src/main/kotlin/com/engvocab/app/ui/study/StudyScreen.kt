@@ -123,7 +123,6 @@ fun StudyScreen(onFinished: () -> Unit, onEditCard: (Long) -> Unit) {
                         back = card.back,
                         example = card.example,
                         phonetic = card.phonetic,
-                        hasAudio = card.audioUrl != null,
                         icon = card.icon(),
                         isFlipped = uiState.isFlipped,
                         onClick = viewModel::flip,
@@ -151,7 +150,6 @@ private fun FlashCard(
     back: String,
     example: String?,
     phonetic: String?,
-    hasAudio: Boolean,
     icon: String,
     isFlipped: Boolean,
     onClick: () -> Unit,
@@ -177,7 +175,7 @@ private fun FlashCard(
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,
                     )
-                    if (!flipped && (!phonetic.isNullOrBlank() || hasAudio)) {
+                    if (!flipped) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (!phonetic.isNullOrBlank()) {
                                 Text(
@@ -186,10 +184,8 @@ private fun FlashCard(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                            if (hasAudio) {
-                                IconButton(onClick = onPlayPronunciation) {
-                                    Icon(Icons.Filled.VolumeUp, contentDescription = "Play pronunciation")
-                                }
+                            IconButton(onClick = onPlayPronunciation) {
+                                Icon(Icons.Filled.VolumeUp, contentDescription = "Play pronunciation")
                             }
                         }
                     }

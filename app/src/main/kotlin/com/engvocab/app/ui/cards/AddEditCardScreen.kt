@@ -147,7 +147,7 @@ fun AddEditCardScreen(cardId: Long?, onDone: () -> Unit, onBack: () -> Unit) {
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                 )
-                if (uiState.audioUrl != null) {
+                if (uiState.front.isNotBlank()) {
                     IconButton(onClick = viewModel::playPronunciation) {
                         Icon(Icons.Filled.VolumeUp, contentDescription = "Play pronunciation")
                     }
