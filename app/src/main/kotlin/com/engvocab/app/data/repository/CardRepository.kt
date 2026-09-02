@@ -56,6 +56,10 @@ class CardRepository(
     suspend fun cardsMissingTranslation(language: TargetLanguage): List<CardEntity> =
         cardDao.getCardsWithBlankBack(language)
 
+    /** Cards in [language] with a translation but no phonetic/audio yet - the other bulk auto-fill target. */
+    suspend fun cardsMissingPronunciation(language: TargetLanguage): List<CardEntity> =
+        cardDao.getCardsMissingPronunciation(language)
+
     private suspend fun scheduler(): FsrsScheduler =
         FsrsScheduler(desiredRetention = settingsRepository.desiredRetention.first())
 

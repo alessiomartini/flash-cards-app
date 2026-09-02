@@ -59,10 +59,12 @@ class SyncViewModel(
     }
 
     /**
-     * Fills in the translation (and, when the free dictionary has one, a short example sentence
-     * and definition) for every card in the selected language still missing a back - typically a
-     * batch just pulled from a Duocards export, which never carries translations. Runs one card
-     * at a time to respect the free translation API's rate limit; safe to stop and resume later.
+     * Fills in whatever a card in the selected language is still missing: translation (plus, when
+     * the free dictionary has one, a short example sentence and definition) for cards with no back
+     * at all - typically a batch just pulled from a Duocards export - and phonetic/pronunciation
+     * audio for cards that already have a back but never went through the dictionary lookup (e.g.
+     * rows filled in bulk directly on the cloud side). Runs one card at a time to respect the free
+     * translation API's rate limit; safe to stop and resume later.
      */
     fun fillMissingTranslations() {
         if (_uiState.value.isBusy) return
@@ -71,19 +73,21 @@ class SyncViewModel(
                 it.copy(isAutoFilling = true, errorMessage = null, autoFillResult = null, autoFillDone = 0, autoFillTotal = 0)
             }
             val language = settingsRepository.selectedLanguage.first()
-            val cards = cardRepository.cardsMissingTranslation(language)
+            val cards = (cardRepository.cardsMissingTranslation(language) + cardRepository.cardsMissingPronunciation(language))
+                .distinctBy { it.id }
             _uiState.update { it.copy(autoFillTotal = cards.size) }
 
             var filled = 0
             var stillMissing = 0
             for ((index, card) in cards.withIndex()) {
-                val enrichment = enrichmentService.enrich(card.front, language)
-                if (enrichment.translation.isNullOrBlank()) {
+                val needsTranslation = card.back.isBlank()
+                val enrichment = enrichmentService.enrich(card.front, language, needsTranslation)
+                if (needsTranslation && enrichment.translation.isNullOrBlank()) {
                     stillMissing++
                 } else {
                     cardRepository.updateCard(
                         card.copy(
-                            back = enrichment.translation,
+                            back = if (needsTranslation) enrichment.translation ?: card.back else card.back,
                             definition = card.definition ?: enrichment.definition,
                             example = card.example ?: enrichment.example,
                             partOfSpeech = card.partOfSpeech ?: enrichment.partOfSpeech,

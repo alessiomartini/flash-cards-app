@@ -13,7 +13,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -22,15 +25,23 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -40,7 +51,7 @@ import com.engvocab.core.model.Rating
 import kotlin.math.roundToInt
 
 @Composable
-fun StudyScreen(onFinished: () -> Unit) {
+fun StudyScreen(onFinished: () -> Unit, onEditCard: (Long) -> Unit) {
     val container = rememberAppContainer()
     val viewModel: StudyViewModel = viewModel(
         factory = viewModelFactory {
@@ -48,13 +59,52 @@ fun StudyScreen(onFinished: () -> Unit) {
         },
     )
     val uiState by viewModel.uiState.collectAsState()
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    // The card just edited (or deleted from the Cards tab) may be stale in our in-memory queue -
+    // pick up any change made while we were away, e.g. on the Edit screen.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.refreshCurrentCard()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete this card?") },
+            text = { Text("This removes it permanently from your deck. This can't be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteConfirm = false
+                    viewModel.deleteCurrentCard()
+                }) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+            },
+        )
+    }
 
     Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
         if (uiState.queue.isNotEmpty()) {
-            LinearProgressIndicator(
-                progress = { (uiState.currentIndex.toFloat() / uiState.queue.size).coerceIn(0f, 1f) },
-                modifier = Modifier.fillMaxWidth(),
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                LinearProgressIndicator(
+                    progress = { (uiState.currentIndex.toFloat() / uiState.queue.size).coerceIn(0f, 1f) },
+                    modifier = Modifier.weight(1f),
+                )
+                if (!uiState.isSessionComplete && uiState.currentCard != null) {
+                    IconButton(onClick = { uiState.currentCard?.let { onEditCard(it.id) } }) {
+                        Icon(Icons.Filled.Edit, contentDescription = "Edit this card")
+                    }
+                    IconButton(onClick = { showDeleteConfirm = true }) {
+                        Icon(Icons.Filled.Delete, contentDescription = "Delete this card")
+                    }
+                }
+            }
             Spacer(Modifier.height(8.dp))
             Text(
                 "${uiState.remaining} to review",

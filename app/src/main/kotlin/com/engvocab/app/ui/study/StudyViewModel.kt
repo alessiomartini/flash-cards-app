@@ -88,6 +88,39 @@ class StudyViewModel(
         }
     }
 
+    /** Deletes the card currently on screen and moves on to the next one in the queue, if any. */
+    fun deleteCurrentCard() {
+        val card = uiState.value.currentCard ?: return
+        viewModelScope.launch {
+            audioPlayer.stop()
+            cardRepository.deleteCard(card)
+            val index = uiState.value.currentIndex
+            val newQueue = uiState.value.queue.toMutableList().also { if (index in it.indices) it.removeAt(index) }
+            val done = index >= newQueue.size
+            _uiState.update { it.copy(queue = newQueue, isFlipped = false, isSessionComplete = done) }
+            if (!done) {
+                loadPreview()
+                playPronunciation()
+            }
+        }
+    }
+
+    /** Re-reads the current card from the DB - call after returning from editing it. */
+    fun refreshCurrentCard() {
+        val current = uiState.value.currentCard ?: return
+        viewModelScope.launch {
+            val refreshed = cardRepository.getCard(current.id) ?: return@launch
+            val index = uiState.value.currentIndex
+            _uiState.update { state ->
+                val newQueue = state.queue.toMutableList()
+                if (index in newQueue.indices) newQueue[index] = refreshed
+                state.copy(queue = newQueue)
+            }
+            loadPreview()
+            playPronunciation()
+        }
+    }
+
     override fun onCleared() {
         audioPlayer.stop()
     }

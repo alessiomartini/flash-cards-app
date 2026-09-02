@@ -22,10 +22,14 @@ class EnrichmentService(
     private val dictionaryApiClient: DictionaryApiClient = DictionaryApiClient(),
     private val translationApiClient: TranslationApiClient = TranslationApiClient(),
 ) {
-    /** [term] is in [language] - the dictionary lookup only works for languages dictionaryapi.dev covers. */
-    suspend fun enrich(term: String, language: TargetLanguage): Enrichment {
+    /**
+     * [term] is in [language] - the dictionary lookup only works for languages dictionaryapi.dev
+     * covers. Pass [needsTranslation] = false to skip the translation API call (and spare its
+     * quota) when the card already has a back and only pronunciation is being filled in.
+     */
+    suspend fun enrich(term: String, language: TargetLanguage, needsTranslation: Boolean = true): Enrichment {
         val dictionary = dictionaryApiClient.lookup(term, language)
-        val translation = translationApiClient.translateToItalian(term, language)
+        val translation = if (needsTranslation) translationApiClient.translateToItalian(term, language) else null
         return Enrichment(
             translation = translation,
             definition = dictionary?.definition,

@@ -57,4 +57,15 @@ interface CardDao {
     /** Cards still missing a translation - e.g. freshly synced from a Duocards export with no back column. */
     @Query("SELECT * FROM cards WHERE language = :language AND back = ''")
     suspend fun getCardsWithBlankBack(language: TargetLanguage): List<CardEntity>
+
+    /**
+     * Cards that already have a translation but are still missing pronunciation (phonetic and/or
+     * audio) - e.g. rows filled in bulk directly on the cloud side, which never go through the
+     * dictionary lookup that supplies those two fields.
+     */
+    @Query(
+        "SELECT * FROM cards WHERE language = :language AND back != '' " +
+            "AND (phonetic IS NULL OR audioUrl IS NULL)",
+    )
+    suspend fun getCardsMissingPronunciation(language: TargetLanguage): List<CardEntity>
 }

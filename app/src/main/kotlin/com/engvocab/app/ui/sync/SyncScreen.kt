@@ -96,13 +96,15 @@ fun SyncScreen() {
         }
 
         Column {
-            Text("Fill in missing translations", style = MaterialTheme.typography.titleMedium)
+            Text("Fill in missing translations & pronunciation", style = MaterialTheme.typography.titleMedium)
             Text(
-                "Looks up a translation, a short example sentence showing the word in context, and " +
-                    "a definition for every card in the selected language that still has no back - " +
-                    "e.g. a batch just synced from a Duocards export, which never carries translations. " +
-                    "Runs one card at a time using the same free services as the per-card Auto-fill " +
-                    "button, so a large batch can take a while and may hit the free daily quota.",
+                "Looks up a translation, a short example sentence showing the word in context, a " +
+                    "definition, and pronunciation (IPA + audio) for every card in the selected language " +
+                    "that's missing any of these - both cards with no back at all (e.g. a batch just " +
+                    "synced from a Duocards export) and cards that already have a translation but no " +
+                    "pronunciation yet (e.g. rows filled in bulk on the cloud side). Runs one card at a " +
+                    "time using the same free services as the per-card Auto-fill button, so a large batch " +
+                    "can take a while and may hit the free daily quota.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -115,7 +117,7 @@ fun SyncScreen() {
                 if (uiState.isAutoFilling) {
                     Text("Filling in... ${uiState.autoFillDone}/${uiState.autoFillTotal}")
                 } else {
-                    Text("Fill in missing translations")
+                    Text("Fill in missing translations & pronunciation")
                 }
             }
             if (uiState.isAutoFilling && uiState.autoFillTotal > 0) {

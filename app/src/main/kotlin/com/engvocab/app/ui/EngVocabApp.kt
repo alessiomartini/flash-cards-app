@@ -87,7 +87,10 @@ fun EngVocabApp() {
                 HomeScreen(onStudyClick = { navController.navigate(Routes.STUDY) })
             }
             composable(Routes.STUDY) {
-                StudyScreen(onFinished = { navController.popBackStack() })
+                StudyScreen(
+                    onFinished = { navController.popBackStack() },
+                    onEditCard = { id -> navController.navigate(Routes.editCard(id)) },
+                )
             }
             composable(Routes.CARDS) {
                 CardListScreen(
