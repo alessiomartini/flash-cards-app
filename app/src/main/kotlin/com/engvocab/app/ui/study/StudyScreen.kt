@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -21,6 +22,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -46,6 +49,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.engvocab.app.data.repository.StudyMode
 import com.engvocab.app.ui.components.icon
 import com.engvocab.app.ui.rememberAppContainer
 import com.engvocab.core.model.Rating
@@ -117,6 +121,8 @@ fun StudyScreen(onFinished: () -> Unit, onEditCard: (Long) -> Unit) {
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Spacer(Modifier.height(8.dp))
+            StudyModeSelector(mode = uiState.mode, onModeChange = viewModel::setMode)
         }
 
         Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
@@ -125,6 +131,7 @@ fun StudyScreen(onFinished: () -> Unit, onEditCard: (Long) -> Unit) {
                 uiState.isSessionComplete -> SessionComplete(onFinished)
                 else -> uiState.currentCard?.let { card ->
                     FlashCard(
+                        mode = uiState.mode,
                         front = card.front,
                         back = card.back,
                         example = card.example,
@@ -151,7 +158,29 @@ fun StudyScreen(onFinished: () -> Unit, onEditCard: (Long) -> Unit) {
 }
 
 @Composable
+private fun StudyModeSelector(mode: StudyMode, onModeChange: (StudyMode) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        FilterChip(
+            selected = mode == StudyMode.TERM_FIRST,
+            onClick = { onModeChange(StudyMode.TERM_FIRST) },
+            label = { Text("Term → meaning") },
+        )
+        FilterChip(
+            selected = mode == StudyMode.MEANING_FIRST,
+            onClick = { onModeChange(StudyMode.MEANING_FIRST) },
+            label = { Text("Meaning → term") },
+        )
+        FilterChip(
+            selected = mode == StudyMode.LISTENING,
+            onClick = { onModeChange(StudyMode.LISTENING) },
+            label = { Text("Listening") },
+        )
+    }
+}
+
+@Composable
 private fun FlashCard(
+    mode: StudyMode,
     front: String,
     back: String,
     example: String?,
@@ -174,35 +203,9 @@ private fun FlashCard(
                     if (!flipped) {
                         Text(icon, style = MaterialTheme.typography.displayMedium)
                         Spacer(Modifier.height(8.dp))
-                    }
-                    Text(
-                        text = if (flipped) back else front,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                    )
-                    if (!flipped) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (!phonetic.isNullOrBlank()) {
-                                Text(
-                                    phonetic,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            IconButton(onClick = onPlayPronunciation) {
-                                Icon(Icons.Filled.VolumeUp, contentDescription = "Play pronunciation")
-                            }
-                        }
-                    }
-                    if (flipped && !example.isNullOrBlank()) {
-                        Spacer(Modifier.height(16.dp))
-                        Text(
-                            example,
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        CardPrompt(mode, front, back, phonetic, onPlayPronunciation)
+                    } else {
+                        CardAnswer(mode, front, back, phonetic, example, onPlayPronunciation)
                     }
                     if (!flipped) {
                         Spacer(Modifier.height(12.dp))
@@ -214,6 +217,78 @@ private fun FlashCard(
                     }
                 }
             }
+        }
+    }
+}
+
+/** What's shown before flipping - depends on [mode], see [StudyMode]'s own doc for what each hides and why. */
+@Composable
+private fun CardPrompt(mode: StudyMode, front: String, back: String, phonetic: String?, onPlayPronunciation: () -> Unit) {
+    when (mode) {
+        StudyMode.TERM_FIRST -> {
+            Text(front, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+            PhoneticRow(phonetic, onPlayPronunciation)
+        }
+        StudyMode.MEANING_FIRST ->
+            Text(back, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+        StudyMode.LISTENING -> {
+            Text(
+                "Listen, then recall the meaning",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(12.dp))
+            FilledIconButton(onClick = onPlayPronunciation, modifier = Modifier.size(64.dp)) {
+                Icon(Icons.Filled.VolumeUp, contentDescription = "Play pronunciation", modifier = Modifier.size(32.dp))
+            }
+        }
+    }
+}
+
+/**
+ * What's shown after flipping - always both sides, regardless of mode, so whichever one was
+ * hidden in [CardPrompt] (the meaning in Term→meaning/Listening, the term in Meaning→term)
+ * gets revealed alongside the one already seen, for a full confirmation either way.
+ */
+@Composable
+private fun CardAnswer(
+    mode: StudyMode,
+    front: String,
+    back: String,
+    phonetic: String?,
+    example: String?,
+    onPlayPronunciation: () -> Unit,
+) {
+    if (mode == StudyMode.MEANING_FIRST) {
+        Text(back, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(6.dp))
+        Text(front, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+        PhoneticRow(phonetic, onPlayPronunciation)
+    } else {
+        Text(front, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        PhoneticRow(phonetic, onPlayPronunciation)
+        Spacer(Modifier.height(6.dp))
+        Text(back, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+    }
+    if (!example.isNullOrBlank()) {
+        Spacer(Modifier.height(16.dp))
+        Text(
+            example,
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun PhoneticRow(phonetic: String?, onPlayPronunciation: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (!phonetic.isNullOrBlank()) {
+            Text(phonetic, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        IconButton(onClick = onPlayPronunciation) {
+            Icon(Icons.Filled.VolumeUp, contentDescription = "Play pronunciation")
         }
     }
 }

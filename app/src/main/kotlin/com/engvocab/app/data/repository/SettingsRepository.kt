@@ -18,6 +18,7 @@ class SettingsRepository(private val context: Context) {
         val DESIRED_RETENTION = doublePreferencesKey("desired_retention")
         val AUTO_ENRICH_ENABLED = booleanPreferencesKey("auto_enrich_enabled")
         val SELECTED_LANGUAGE = stringPreferencesKey("selected_language")
+        val STUDY_MODE = stringPreferencesKey("study_mode")
         val CF_ACCOUNT_ID = stringPreferencesKey("cf_account_id")
         val CF_DATABASE_ID = stringPreferencesKey("cf_database_id")
         val CF_API_TOKEN = stringPreferencesKey("cf_api_token")
@@ -48,6 +49,15 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setSelectedLanguage(language: TargetLanguage) {
         context.dataStore.edit { it[Keys.SELECTED_LANGUAGE] = language.name }
+    }
+
+    /** Which side of the card Study shows first - remembered so it doesn't reset every session. */
+    val studyMode: Flow<StudyMode> = context.dataStore.data.map { prefs ->
+        prefs[Keys.STUDY_MODE]?.let { runCatching { StudyMode.valueOf(it) }.getOrNull() } ?: StudyMode.TERM_FIRST
+    }
+
+    suspend fun setStudyMode(mode: StudyMode) {
+        context.dataStore.edit { it[Keys.STUDY_MODE] = mode.name }
     }
 
     /** Cloudflare account ID, D1 database UUID, and an API token with D1:Edit - set once in Settings. */

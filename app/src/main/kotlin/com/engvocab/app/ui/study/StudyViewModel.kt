@@ -6,6 +6,7 @@ import com.engvocab.app.audio.AudioPlayer
 import com.engvocab.app.data.db.CardEntity
 import com.engvocab.app.data.repository.CardRepository
 import com.engvocab.app.data.repository.SettingsRepository
+import com.engvocab.app.data.repository.StudyMode
 import com.engvocab.core.model.Rating
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,6 +23,7 @@ data class StudyUiState(
     val isSessionComplete: Boolean = false,
     val previewIntervals: Map<Rating, Long> = emptyMap(),
     val canUndo: Boolean = false,
+    val mode: StudyMode = StudyMode.TERM_FIRST,
 ) {
     val currentCard: CardEntity? get() = queue.getOrNull(currentIndex)
     val remaining: Int get() = (queue.size - currentIndex).coerceAtLeast(0)
@@ -50,6 +52,7 @@ class StudyViewModel(
             pendingUndo = null
             _uiState.update { it.copy(isLoading = true) }
             val language = settingsRepository.selectedLanguage.first()
+            val mode = settingsRepository.studyMode.first()
             val due = cardRepository.getDueCards(language)
             _uiState.update {
                 it.copy(
@@ -59,11 +62,18 @@ class StudyViewModel(
                     isLoading = false,
                     isSessionComplete = due.isEmpty(),
                     canUndo = false,
+                    mode = mode,
                 )
             }
             loadPreview()
-            playPronunciation()
+            autoPlayPronunciation()
         }
+    }
+
+    /** Switches which side Study shows first, persisting the choice for next time. */
+    fun setMode(mode: StudyMode) {
+        _uiState.update { it.copy(mode = mode) }
+        viewModelScope.launch { settingsRepository.setStudyMode(mode) }
     }
 
     private fun loadPreview() {
@@ -84,6 +94,15 @@ class StudyViewModel(
         audioPlayer.speak(card.front, card.language.apiCode)
     }
 
+    /**
+     * Auto-play on a freshly-shown, unflipped card - skipped in [StudyMode.MEANING_FIRST], where
+     * hearing the term pronounced would just hand over the answer before the user's tried to
+     * produce it from the Italian meaning.
+     */
+    private fun autoPlayPronunciation() {
+        if (uiState.value.mode != StudyMode.MEANING_FIRST) playPronunciation()
+    }
+
     fun rate(rating: Rating) {
         val card = uiState.value.currentCard ?: return
         val index = uiState.value.currentIndex
@@ -96,7 +115,7 @@ class StudyViewModel(
             _uiState.update { it.copy(currentIndex = nextIndex, isFlipped = false, isSessionComplete = done, canUndo = true) }
             if (!done) {
                 loadPreview()
-                playPronunciation()
+                autoPlayPronunciation()
             }
         }
     }
@@ -142,7 +161,7 @@ class StudyViewModel(
             _uiState.update { it.copy(queue = newQueue, isFlipped = false, isSessionComplete = done, canUndo = false) }
             if (!done) {
                 loadPreview()
-                playPronunciation()
+                autoPlayPronunciation()
             }
         }
     }
@@ -159,7 +178,7 @@ class StudyViewModel(
                 state.copy(queue = newQueue)
             }
             loadPreview()
-            playPronunciation()
+            autoPlayPronunciation()
         }
     }
 
