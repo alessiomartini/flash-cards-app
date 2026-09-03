@@ -5,14 +5,20 @@ import com.engvocab.core.importer.ImportSource
 import com.engvocab.core.model.FsrsCardState
 import com.engvocab.core.model.Rating
 import com.engvocab.core.model.TargetLanguage
+import com.engvocab.core.sync.D1Client
+import com.engvocab.core.sync.D1Credentials
 import com.engvocab.core.sync.RemoteWord
 import com.engvocab.app.data.db.CardDao
 import com.engvocab.app.data.db.CardEntity
 import com.engvocab.app.data.db.CardType
 import com.engvocab.app.data.db.ReviewLogDao
 import com.engvocab.app.data.db.ReviewLogEntity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -29,6 +35,10 @@ class CardRepository(
     private val reviewLogDao: ReviewLogDao,
     private val settingsRepository: SettingsRepository,
 ) {
+    // Outlives any single ViewModel, so a push started right before the user navigates away
+    // (clearing that ViewModel's own scope) still gets a chance to finish.
+    private val eventScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     fun observeAllCards(language: TargetLanguage): Flow<List<CardEntity>> = cardDao.observeAllByLanguage(language)
 
     fun observeTotalCount(language: TargetLanguage): Flow<Int> = cardDao.observeTotalCountByLanguage(language)
@@ -42,7 +52,11 @@ class CardRepository(
     suspend fun countDue(language: TargetLanguage, now: Long = System.currentTimeMillis()): Int =
         cardDao.countDueByLanguage(language, now)
 
-    suspend fun addCard(card: CardEntity): Long = cardDao.insert(card)
+    suspend fun addCard(card: CardEntity): Long {
+        val id = cardDao.insert(card)
+        pushEventBestEffort { it.insertCardAddEvent(card.language.apiCode, System.currentTimeMillis()) }
+        return id
+    }
 
     suspend fun addCards(cards: List<CardEntity>): List<Long> = cardDao.insertAll(cards)
 
@@ -96,7 +110,24 @@ class CardRepository(
                 intervalMillis = result.intervalMillis,
             ),
         )
+        pushEventBestEffort { it.insertReviewEvent(card.language.apiCode, rating.value, now) }
         return ReviewOutcome(updated, logId)
+    }
+
+    /**
+     * Fire-and-forget push to the stats site's D1 tables (see [D1Client.insertReviewEvent]/
+     * [D1Client.insertCardAddEvent]). Silently does nothing without Cloudflare credentials in
+     * Settings, and silently swallows any network/API failure - this is analytics, not sync,
+     * and must never slow down or fail a review or a card save.
+     */
+    private fun pushEventBestEffort(action: (D1Client) -> Unit) {
+        eventScope.launch {
+            val accountId = settingsRepository.cloudflareAccountId.first()
+            val databaseId = settingsRepository.cloudflareDatabaseId.first()
+            val apiToken = settingsRepository.cloudflareApiToken.first()
+            if (accountId.isBlank() || databaseId.isBlank() || apiToken.isBlank()) return@launch
+            runCatching { action(D1Client(D1Credentials(accountId, databaseId, apiToken))) }
+        }
     }
 
     /**

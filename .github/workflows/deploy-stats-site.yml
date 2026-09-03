@@ -1,0 +1,31 @@
+name: Deploy Stats Site
+
+on:
+  push:
+    branches:
+      - main
+      - claude/flashcard-english-vocab-app-yh1tzi
+    paths:
+      - "web/stats/**"
+      - ".github/workflows/deploy-stats-site.yml"
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Requires two repo secrets, set once in Settings > Secrets and variables > Actions:
+      #   CLOUDFLARE_API_TOKEN   - an API token with "Cloudflare Pages: Edit" permission
+      #   CLOUDFLARE_ACCOUNT_ID  - your Cloudflare account ID
+      # See web/stats/README.md for the one-time Cloudflare Pages project setup this deploy
+      # step assumes already exists (project name "engvocab-stats", D1 binding "DB").
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: web/stats
+          command: pages deploy public --project-name=engvocab-stats

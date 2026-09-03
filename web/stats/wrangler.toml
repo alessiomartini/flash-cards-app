@@ -1,0 +1,16 @@
+name = "engvocab-stats"
+pages_build_output_dir = "public"
+compatibility_date = "2024-09-23"
+
+# Read-only access to the same D1 database the phone app syncs vocabulary from and pushes
+# review/card-add events to (see core/src/.../sync/D1Client.kt). functions/api/stats.js binds
+# to it as env.DB - no build step, Wrangler bundles functions/ automatically on deploy.
+#
+# If this binding doesn't show up on the deployed site (Wrangler's Pages support for bindings
+# declared in wrangler.toml has changed across versions), set it by hand instead: Cloudflare
+# dashboard -> Workers & Pages -> engvocab-stats -> Settings -> Functions -> D1 database
+# bindings -> add one named "DB" pointing at the "engvocab" database.
+[[d1_databases]]
+binding = "DB"
+database_name = "engvocab"
+database_id = "a3c72aca-5d9a-4ab1-a424-5f145c235968"

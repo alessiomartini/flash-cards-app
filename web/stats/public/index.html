@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>EngVocab · Statistiche</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<header class="page-header">
+  <div>
+    <h1>EngVocab</h1>
+    <p class="subtitle">Statistiche di apprendimento</p>
+  </div>
+  <nav class="lang-filter" id="lang-filter" aria-label="Filtra per lingua">
+    <button data-lang="all" class="active">Tutte</button>
+  </nav>
+</header>
+
+<main id="app">
+  <p id="status" class="status">Caricamento…</p>
+
+  <section class="kpi-row" id="kpi-row" hidden>
+    <div class="kpi-tile">
+      <span class="kpi-value" id="kpi-cards">–</span>
+      <span class="kpi-label">Carte totali</span>
+    </div>
+    <div class="kpi-tile">
+      <span class="kpi-value" id="kpi-reviews">–</span>
+      <span class="kpi-label">Ripassi totali</span>
+    </div>
+    <div class="kpi-tile">
+      <span class="kpi-value" id="kpi-reviews-today">–</span>
+      <span class="kpi-label">Ripassi oggi</span>
+    </div>
+    <div class="kpi-tile">
+      <span class="kpi-value" id="kpi-streak">–</span>
+      <span class="kpi-label">Giorni di fila</span>
+    </div>
+  </section>
+
+  <section class="card" id="heatmap-card" hidden>
+    <h2>Quando ti sei allenato</h2>
+    <p class="card-subtitle">Ripassi per giorno, ultimi ~6 mesi</p>
+    <div class="heatmap-scroll">
+      <div id="heatmap"></div>
+    </div>
+    <div class="heatmap-legend">
+      <span>Meno</span>
+      <span class="legend-swatch" data-level="0"></span>
+      <span class="legend-swatch" data-level="1"></span>
+      <span class="legend-swatch" data-level="2"></span>
+      <span class="legend-swatch" data-level="3"></span>
+      <span class="legend-swatch" data-level="4"></span>
+      <span>Più</span>
+    </div>
+  </section>
+
+  <section class="card" id="added-card" hidden>
+    <h2>Quando hai inserito le carte</h2>
+    <p class="card-subtitle">Nuove carte per giorno</p>
+    <div id="added-chart" class="chart"></div>
+  </section>
+
+  <section class="card" id="rating-card" hidden>
+    <h2>Come valuti le carte</h2>
+    <p class="card-subtitle">Distribuzione delle valutazioni su tutti i ripassi</p>
+    <div id="rating-chart" class="chart"></div>
+  </section>
+</main>
+
+<footer class="page-footer">
+  <span id="generated-at"></span>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

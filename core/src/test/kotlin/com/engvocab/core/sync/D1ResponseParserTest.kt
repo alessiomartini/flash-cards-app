@@ -72,4 +72,31 @@ class D1ResponseParserTest {
         assertFailsWith<D1SyncException> { D1ResponseParser.parseWords("not json") }
         assertFailsWith<D1SyncException> { D1ResponseParser.parseWords("") }
     }
+
+    @Test
+    fun `checkSuccess does not throw for a successful write response with no rows`() {
+        val json = """
+            {
+              "success": true,
+              "errors": [],
+              "result": [{ "success": true, "meta": { "last_row_id": 42, "rows_written": 1 } }]
+            }
+        """.trimIndent()
+
+        D1ResponseParser.checkSuccess(json)
+    }
+
+    @Test
+    fun `checkSuccess throws with the API error message when success is false`() {
+        val json = """
+            {
+              "success": false,
+              "errors": [{ "code": 7500, "message": "SQL error" }],
+              "result": []
+            }
+        """.trimIndent()
+
+        val exception = assertFailsWith<D1SyncException> { D1ResponseParser.checkSuccess(json) }
+        assertTrue(exception.message!!.contains("SQL error"))
+    }
 }

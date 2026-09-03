@@ -20,8 +20,9 @@ private val JSON_MEDIA_TYPE = "application/json".toMediaType()
  * Talks directly to Cloudflare's D1 REST API (`/client/v4/accounts/{account}/d1/database/{db}/query`)
  * over HTTPS with a bearer API token - no Worker deployed. Cloudflare's own docs note this base REST
  * API is best suited for administrative/low-volume use (a shared account-wide rate limit applies),
- * which fits this app: an occasional bulk import from a computer, and an occasional phone pull-sync.
- * Vocabulary content only ever flows one way, cloud -> phone; the app never writes to D1.
+ * which fits this app: an occasional bulk import from a computer, an occasional phone pull-sync, and
+ * one small write per review/card-add for the stats site (see [insertReviewEvent]/[insertCardAddEvent]).
+ * Vocabulary content itself still only ever flows one way, cloud -> phone.
  */
 class D1Client(
     private val credentials: D1Credentials,
@@ -62,14 +63,50 @@ class D1Client(
         )
     }
 
-    private fun execute(sql: String, params: List<Any?> = emptyList()): List<RemoteWord> {
-        val requestBodyJson = JsonObject(
-            mapOf(
-                "sql" to JsonPrimitive(sql),
-                "params" to JsonArray(params.map(::toJsonElement)),
-            ),
+    /**
+     * Records one review, for the stats site's timeline - best-effort from the app's side (see
+     * [com.engvocab.app.data.repository.CardRepository]), never blocks or fails a review locally.
+     */
+    fun insertReviewEvent(language: String, rating: Int, reviewedAt: Long) {
+        executeWrite(
+            sql = "INSERT INTO review_events (language, rating, reviewed_at) VALUES (?, ?, ?)",
+            params = listOf(language, rating, reviewedAt),
         )
-        val body = requestBodyJson.toString().toRequestBody(JSON_MEDIA_TYPE)
+    }
+
+    /** Records one manually-added card, for the stats site's timeline - imported cards use `words.created_at` instead. */
+    fun insertCardAddEvent(language: String, addedAt: Long) {
+        executeWrite(
+            sql = "INSERT INTO card_add_events (language, added_at) VALUES (?, ?)",
+            params = listOf(language, addedAt),
+        )
+    }
+
+    private fun executeWrite(sql: String, params: List<Any?> = emptyList()) {
+        val body = requestBody(sql, params)
+        val request = Request.Builder()
+            .url(endpoint)
+            .addHeader("Authorization", "Bearer ${credentials.apiToken}")
+            .addHeader("Content-Type", "application/json")
+            .post(body)
+            .build()
+
+        httpClient.newCall(request).execute().use { response ->
+            val responseBody = response.body?.string().orEmpty()
+            if (!response.isSuccessful) {
+                throw D1SyncException("D1 request failed: HTTP ${response.code} $responseBody")
+            }
+            D1ResponseParser.checkSuccess(responseBody)
+        }
+    }
+
+    private fun requestBody(sql: String, params: List<Any?>) =
+        JsonObject(mapOf("sql" to JsonPrimitive(sql), "params" to JsonArray(params.map(::toJsonElement))))
+            .toString()
+            .toRequestBody(JSON_MEDIA_TYPE)
+
+    private fun execute(sql: String, params: List<Any?> = emptyList()): List<RemoteWord> {
+        val body = requestBody(sql, params)
 
         val request = Request.Builder()
             .url(endpoint)

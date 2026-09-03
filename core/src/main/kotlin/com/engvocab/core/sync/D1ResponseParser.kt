@@ -35,7 +35,14 @@ object D1ResponseParser {
     private val json = Json { ignoreUnknownKeys = true }
 
     /** Returns the rows from the first query result. Throws [D1SyncException] on any API-level failure. */
-    fun parseWords(body: String): List<RemoteWord> {
+    fun parseWords(body: String): List<RemoteWord> = parseEnvelope(body).result.firstOrNull()?.results.orEmpty()
+
+    /** For statements with no rows to read back (INSERT/CREATE). Throws [D1SyncException] on failure. */
+    fun checkSuccess(body: String) {
+        parseEnvelope(body)
+    }
+
+    private fun parseEnvelope(body: String): D1Envelope {
         val envelope = try {
             json.decodeFromString(D1Envelope.serializer(), body)
         } catch (e: Exception) {
@@ -45,6 +52,6 @@ object D1ResponseParser {
             val message = envelope.errors.joinToString { it.message }.ifBlank { "unknown error" }
             throw D1SyncException("D1 query failed: $message")
         }
-        return envelope.result.firstOrNull()?.results.orEmpty()
+        return envelope
     }
 }

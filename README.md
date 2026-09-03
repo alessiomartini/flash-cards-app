@@ -85,6 +85,8 @@ app/    the Android app (Jetpack Compose + Room + Navigation), depends on :core.
 cli/    computer-side bulk-import tool (plain JVM), depends on :core. See "Importing
         your vocabulary" below - this is how a Duocards/Kindle export gets pushed into
         the online database, no adb, no in-app file picker involved.
+web/    web/stats/ is a sibling website (Cloudflare Pages) showing learning stats read
+        from the same D1 database. See "Stats site" below.
 ```
 
 The critical logic (scheduling algorithm, parsing) lives in `:core`, with no Android
@@ -125,7 +127,7 @@ Or from the terminal, with JDK 17+ and normal network access:
 ./gradlew :core:test
 ```
 
-34 tests cover:
+45 tests cover:
 - **FSRS scheduler** (7 tests): review sequences (Again/Hard/Good/Easy, learning, review,
   relearning, lapses) compared value-by-value against the official `py-fsrs` Python
   library's output, given identical parameters and timestamps.
@@ -135,18 +137,22 @@ Or from the terminal, with JDK 17+ and normal network access:
   highlights with no note, bookmarks ignored, deduplication, language tagging.
 - **Dictionary/translation response parsing** (7 tests): valid and malformed responses
   from the external APIs.
-- **Cloudflare D1 response parsing** (4 tests): the D1 REST API's JSON envelope, including
-  the error-envelope and malformed-response cases.
+- **Cloudflare D1 response parsing** (6 tests): the D1 REST API's JSON envelope for both
+  row-returning queries and no-rows writes, including the error-envelope and
+  malformed-response cases.
 
 ## Importing your vocabulary
 
 Your vocabulary lives in an online database (a [Cloudflare D1](https://developers.cloudflare.com/d1/)
 database, free tier), not just on your phone. Day to day, add single words on the phone
-(the **Cards** tab's `+` button) - those stay local, never uploaded. Bulk imports (e.g. your
-whole Duocards deck, or a Kindle clippings file) and any editing/curation of that shared
-vocabulary happen **from a computer**: either directly in Cloudflare's own dashboard table
-editor, or in bulk with the `:cli` tool. The phone only ever *pulls* from the cloud - your
-review/FSRS progress is never uploaded, it stays local to each phone.
+(the **Cards** tab's `+` button) - the word itself (front/back/definition/etc.) stays local,
+never uploaded. Bulk imports (e.g. your whole Duocards deck, or a Kindle clippings file) and
+any editing/curation of that shared vocabulary happen **from a computer**: either directly in
+Cloudflare's own dashboard table editor, or in bulk with the `:cli` tool. The phone only ever
+*pulls* vocabulary from the cloud - your review/FSRS progress is never uploaded, it stays
+local to each phone. The one exception is the [stats site](#stats-site): the phone does push
+a small, content-free event (just a timestamp, language, and rating) each time you review or
+add a card, so the site has something to chart.
 
 ### One-time setup
 
@@ -234,10 +240,43 @@ translation) and [MyMemory](https://mymemory.translated.net) for the Italian tra
 for all four languages. You can turn this off in Settings. Note: MyMemory has a daily
 free-usage cap.
 
+## Stats site
+
+`web/stats/` is a small sibling website - a Cloudflare Pages project - showing your learning
+stats: a GitHub-style heatmap of when you studied, a chart of when cards were added, a
+rating breakdown, and totals (cards, reviews, streak), with a per-language filter. It reads
+the same `engvocab` D1 database, through a Pages Function (`web/stats/functions/api/stats.js`)
+that queries D1 server-side - no credentials ever reach the browser. The phone pushes the
+events it reads (`review_events`, `card_add_events`) automatically, best-effort, whenever
+your Cloudflare credentials are set in Settings (same three values as cloud sync above); it
+never blocks or fails a review/save if that push doesn't go through.
+
+It isn't live yet from a fresh clone - unlike the app, deploying a website needs a Cloudflare
+resource created and credentials only you should hold, so this is a one-time setup:
+
+1. **Create the Pages project.** In the Cloudflare dashboard: **Workers & Pages → Create →
+   Pages → Connect to Git** (or **Upload assets** for a first manual deploy), name it
+   `engvocab-stats` to match `web/stats/wrangler.toml` and the deploy workflow below.
+2. **Bind the D1 database.** On that project, **Settings → Functions → D1 database
+   bindings → Add binding**: variable name `DB`, database `engvocab`. (`wrangler.toml`
+   declares this binding too - recent Wrangler versions apply it straight from there on
+   deploy, but if the site's `/api/stats` 500s after your first deploy, set it by hand here.)
+3. **Add GitHub repo secrets** (Settings → Secrets and variables → Actions):
+   - `CLOUDFLARE_ACCOUNT_ID` - same value as in the app's Settings.
+   - `CLOUDFLARE_API_TOKEN` - a *separate* token from the app's D1:Edit one, scoped to
+     **Account → Cloudflare Pages → Edit** (My Profile → API Tokens → Create Token).
+4. Push to `web/stats/**` (or run the **Deploy Stats Site** workflow manually from the
+   Actions tab) - `.github/workflows/deploy-stats-site.yml` runs `wrangler pages deploy`
+   and the site goes live at `https://engvocab-stats.pages.dev` (or your custom domain).
+
+No build step: `web/stats/public/` is plain HTML/CSS/JS, deployed as-is.
+
 ## Known limitations / possible future work
 
 - Cloud sync is one-directional (cloud → phone) and vocabulary-only, by design: the app
-  never writes to D1, and review/FSRS progress is never uploaded or synced across devices.
+  never writes vocabulary content to D1, and review/FSRS progress is never uploaded or
+  synced across devices - it only ever writes small, content-free events (timestamp,
+  language, rating) for the [stats site](#stats-site).
 - The phone talks to Cloudflare's D1 REST API directly (no Worker proxy in front of it),
   which Cloudflare's docs note is best suited for lower-volume, administrative-style use -
   fine for an occasional manual sync, but keep the API token to yourself.
