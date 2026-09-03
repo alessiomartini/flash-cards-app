@@ -17,9 +17,19 @@ class AudioPlayer(context: Context) {
     private var textToSpeech: TextToSpeech? = null
     private var isTtsReady = false
 
+    /**
+     * A [speak] call that arrived before the synthesizer finished its (async, sometimes
+     * slow-on-cold-start) init - e.g. Study auto-plays the first due card the instant its
+     * ViewModel is created, which can beat TTS init by a wide margin right after launching the
+     * app. Without this it's just silently dropped: TTS.speak() only works once initialized.
+     */
+    private var pendingSpeech: Pair<String, String>? = null
+
     init {
         textToSpeech = TextToSpeech(context.applicationContext) { status ->
             isTtsReady = status == TextToSpeech.SUCCESS
+            if (isTtsReady) pendingSpeech?.let { (text, languageCode) -> speakNow(text, languageCode) }
+            pendingSpeech = null
         }
     }
 
@@ -50,8 +60,11 @@ class AudioPlayer(context: Context) {
     /** Reads [text] aloud using the device's built-in speech synthesizer, in [languageCode] (ISO 639-1). */
     fun speak(text: String, languageCode: String) {
         stop()
+        if (isTtsReady) speakNow(text, languageCode) else pendingSpeech = text to languageCode
+    }
+
+    private fun speakNow(text: String, languageCode: String) {
         val tts = textToSpeech ?: return
-        if (!isTtsReady) return
         val languageResult = tts.setLanguage(Locale.forLanguageTag(languageCode))
         if (languageResult == TextToSpeech.LANG_MISSING_DATA || languageResult == TextToSpeech.LANG_NOT_SUPPORTED) return
         tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "pronunciation")
@@ -61,5 +74,6 @@ class AudioPlayer(context: Context) {
         mediaPlayer?.release()
         mediaPlayer = null
         textToSpeech?.stop()
+        pendingSpeech = null
     }
 }
