@@ -48,7 +48,21 @@ class AudioPlayer(context: Context) {
         }
     }
 
-    fun play(url: String) {
+    /**
+     * Plays a card's pronunciation: the recorded clip at [audioUrl] if there is one, otherwise
+     * [fallbackText] read aloud via text-to-speech in [languageCode] (ISO 639-1) - and also as a
+     * fallback if the clip itself turns out unplayable (the free dictionary's audio links do
+     * occasionally rot, independent of a card having one recorded at all).
+     */
+    fun pronounce(audioUrl: String?, fallbackText: String, languageCode: String) {
+        if (audioUrl.isNullOrBlank()) {
+            speak(fallbackText, languageCode)
+        } else {
+            play(audioUrl, onFailure = { speak(fallbackText, languageCode) })
+        }
+    }
+
+    private fun play(url: String, onFailure: () -> Unit) {
         stop()
         val player = MediaPlayer()
         mediaPlayer = player
@@ -60,11 +74,7 @@ class AudioPlayer(context: Context) {
         )
         player.setOnPreparedListener { it.start() }
         player.setOnCompletionListener { stop() }
-        player.setOnErrorListener { _, _, _ ->
-            stop()
-            toast("Couldn't play this card's pronunciation clip - check your connection and try again.")
-            true
-        }
+        player.setOnErrorListener { _, _, _ -> stop(); onFailure(); true }
         try {
             // Some pronunciation URLs saved before the parser started normalizing them are
             // protocol-relative ("//host/…mp3") - fine in a browser, but MediaPlayer has no base
@@ -73,12 +83,12 @@ class AudioPlayer(context: Context) {
             player.prepareAsync()
         } catch (e: Exception) {
             stop()
-            toast("Couldn't play this card's pronunciation clip - check your connection and try again.")
+            onFailure()
         }
     }
 
     /** Reads [text] aloud using the device's built-in speech synthesizer, in [languageCode] (ISO 639-1). */
-    fun speak(text: String, languageCode: String) {
+    private fun speak(text: String, languageCode: String) {
         stop()
         when (ttsState) {
             TtsState.READY -> speakNow(text, languageCode)
