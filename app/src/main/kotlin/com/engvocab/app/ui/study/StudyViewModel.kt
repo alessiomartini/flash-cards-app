@@ -21,10 +21,14 @@ data class StudyUiState(
     val isLoading: Boolean = true,
     val isSessionComplete: Boolean = false,
     val previewIntervals: Map<Rating, Long> = emptyMap(),
+    val canUndo: Boolean = false,
 ) {
     val currentCard: CardEntity? get() = queue.getOrNull(currentIndex)
     val remaining: Int get() = (queue.size - currentIndex).coerceAtLeast(0)
 }
+
+/** Enough to restore the last rated card and its review log entry - see [StudyViewModel.undoLastRating]. */
+private data class PendingUndo(val previousCard: CardEntity, val logId: Long, val queueIndex: Int)
 
 class StudyViewModel(
     private val cardRepository: CardRepository,
@@ -34,12 +38,16 @@ class StudyViewModel(
     private val _uiState = MutableStateFlow(StudyUiState())
     val uiState: StateFlow<StudyUiState> = _uiState.asStateFlow()
 
+    /** The most recently rated card, kept only until the next rating/delete/reload - one level of undo. */
+    private var pendingUndo: PendingUndo? = null
+
     init {
         loadQueue()
     }
 
     fun loadQueue() {
         viewModelScope.launch {
+            pendingUndo = null
             _uiState.update { it.copy(isLoading = true) }
             val language = settingsRepository.selectedLanguage.first()
             val due = cardRepository.getDueCards(language)
@@ -50,6 +58,7 @@ class StudyViewModel(
                     isFlipped = false,
                     isLoading = false,
                     isSessionComplete = due.isEmpty(),
+                    canUndo = false,
                 )
             }
             loadPreview()
@@ -77,16 +86,44 @@ class StudyViewModel(
 
     fun rate(rating: Rating) {
         val card = uiState.value.currentCard ?: return
+        val index = uiState.value.currentIndex
         viewModelScope.launch {
             audioPlayer.stop()
-            cardRepository.reviewCard(card, rating)
-            val nextIndex = uiState.value.currentIndex + 1
+            val outcome = cardRepository.reviewCard(card, rating)
+            pendingUndo = PendingUndo(previousCard = card, logId = outcome.logId, queueIndex = index)
+            val nextIndex = index + 1
             val done = nextIndex >= uiState.value.queue.size
-            _uiState.update { it.copy(currentIndex = nextIndex, isFlipped = false, isSessionComplete = done) }
+            _uiState.update { it.copy(currentIndex = nextIndex, isFlipped = false, isSessionComplete = done, canUndo = true) }
             if (!done) {
                 loadPreview()
                 playPronunciation()
             }
+        }
+    }
+
+    /** Undoes the last [rate] call: restores the card's pre-review state and its review log entry. */
+    fun undoLastRating() {
+        val pending = pendingUndo ?: return
+        viewModelScope.launch {
+            audioPlayer.stop()
+            cardRepository.undoReview(pending.previousCard, pending.logId)
+            pendingUndo = null
+            _uiState.update { state ->
+                val newQueue = state.queue.toMutableList()
+                if (pending.queueIndex in newQueue.indices) newQueue[pending.queueIndex] = pending.previousCard
+                state.copy(
+                    queue = newQueue,
+                    currentIndex = pending.queueIndex,
+                    // Flipped, not flip=false: the point of undo is to re-pick a rating for a
+                    // card the learner already saw the answer to, not to quiz them again.
+                    isFlipped = true,
+                    isSessionComplete = false,
+                    canUndo = false,
+                )
+            }
+            // Stays flipped (see above), so no auto-play here - that only happens for a
+            // freshly-shown, unflipped front, per rate()/deleteCurrentCard().
+            loadPreview()
         }
     }
 
@@ -95,11 +132,14 @@ class StudyViewModel(
         val card = uiState.value.currentCard ?: return
         viewModelScope.launch {
             audioPlayer.stop()
+            // Removing an item shifts every later index, which would make pendingUndo's
+            // stored queueIndex point at the wrong card - simplest to just drop it.
+            pendingUndo = null
             cardRepository.deleteCard(card)
             val index = uiState.value.currentIndex
             val newQueue = uiState.value.queue.toMutableList().also { if (index in it.indices) it.removeAt(index) }
             val done = index >= newQueue.size
-            _uiState.update { it.copy(queue = newQueue, isFlipped = false, isSessionComplete = done) }
+            _uiState.update { it.copy(queue = newQueue, isFlipped = false, isSessionComplete = done, canUndo = false) }
             if (!done) {
                 loadPreview()
                 playPronunciation()

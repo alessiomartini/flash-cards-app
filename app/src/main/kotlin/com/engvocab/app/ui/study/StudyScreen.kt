@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -96,6 +97,11 @@ fun StudyScreen(onFinished: () -> Unit, onEditCard: (Long) -> Unit) {
                     progress = { (uiState.currentIndex.toFloat() / uiState.queue.size).coerceIn(0f, 1f) },
                     modifier = Modifier.weight(1f),
                 )
+                if (uiState.canUndo) {
+                    IconButton(onClick = viewModel::undoLastRating) {
+                        Icon(Icons.Filled.Undo, contentDescription = "Undo last rating")
+                    }
+                }
                 if (!uiState.isSessionComplete && uiState.currentCard != null) {
                     IconButton(onClick = { uiState.currentCard?.let { onEditCard(it.id) } }) {
                         Icon(Icons.Filled.Edit, contentDescription = "Edit this card")

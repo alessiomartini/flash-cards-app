@@ -9,6 +9,9 @@ interface ReviewLogDao {
     @Insert
     suspend fun insert(log: ReviewLogEntity): Long
 
+    @Query("DELETE FROM review_logs WHERE id = :id")
+    suspend fun deleteById(id: Long)
+
     @Query("SELECT COUNT(*) FROM review_logs WHERE reviewedAt >= :sinceEpochMs")
     suspend fun countSince(sinceEpochMs: Long): Int
 

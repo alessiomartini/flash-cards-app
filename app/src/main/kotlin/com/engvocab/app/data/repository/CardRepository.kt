@@ -20,6 +20,9 @@ import java.util.Locale
 /** Outcome of one [CardRepository.applySync] pass, shown to the user on the Sync screen. */
 data class SyncResult(val added: Int, val updated: Int, val removed: Int)
 
+/** Outcome of one [CardRepository.reviewCard] call - enough to undo it via [CardRepository.undoReview]. */
+data class ReviewOutcome(val updatedCard: CardEntity, val logId: Long)
+
 /** Wires the Room DAOs together with the FSRS scheduler; every card update goes through here. */
 class CardRepository(
     private val cardDao: CardDao,
@@ -81,11 +84,11 @@ class CardRepository(
         return fsrsScheduler.review(afterFirstGood, Rating.GOOD, now).card
     }
 
-    suspend fun reviewCard(card: CardEntity, rating: Rating, now: Long = System.currentTimeMillis()): CardEntity {
+    suspend fun reviewCard(card: CardEntity, rating: Rating, now: Long = System.currentTimeMillis()): ReviewOutcome {
         val result = scheduler().review(card.fsrs, rating, now)
         val updated = card.copy(fsrs = result.card)
         cardDao.update(updated)
-        reviewLogDao.insert(
+        val logId = reviewLogDao.insert(
             ReviewLogEntity(
                 cardId = card.id,
                 rating = rating.value,
@@ -93,7 +96,16 @@ class CardRepository(
                 intervalMillis = result.intervalMillis,
             ),
         )
-        return updated
+        return ReviewOutcome(updated, logId)
+    }
+
+    /**
+     * Reverts one [reviewCard] call: restores the card to its pre-review state and removes the
+     * log entry it created, so streaks/reviews-today don't keep counting an undone review.
+     */
+    suspend fun undoReview(previousCard: CardEntity, logId: Long) {
+        cardDao.update(previousCard)
+        reviewLogDao.deleteById(logId)
     }
 
     /**
