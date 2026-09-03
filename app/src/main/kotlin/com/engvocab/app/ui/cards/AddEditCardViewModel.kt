@@ -107,10 +107,10 @@ class AddEditCardViewModel(
         }
     }
 
-    /** Plays the recorded pronunciation clip if the dictionary had one, otherwise speaks the front text. */
+    /** Speaks the front text aloud via text-to-speech. */
     fun playPronunciation() {
         val state = uiState.value
-        audioPlayer.pronounce(state.audioUrl, state.front, state.language.apiCode)
+        audioPlayer.speak(state.front, state.language.apiCode)
     }
 
     fun save() {

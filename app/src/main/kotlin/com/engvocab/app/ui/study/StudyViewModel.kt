@@ -69,10 +69,10 @@ class StudyViewModel(
         _uiState.update { it.copy(isFlipped = !it.isFlipped) }
     }
 
-    /** Plays the recorded pronunciation clip if the dictionary had one, otherwise speaks the front text. */
+    /** Speaks the current card's front text aloud via text-to-speech. */
     fun playPronunciation() {
         val card = uiState.value.currentCard ?: return
-        audioPlayer.pronounce(card.audioUrl, card.front, card.language.apiCode)
+        audioPlayer.speak(card.front, card.language.apiCode)
     }
 
     fun rate(rating: Rating) {

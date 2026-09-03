@@ -1,22 +1,19 @@
 package com.engvocab.app.audio
 
 import android.content.Context
-import android.media.AudioAttributes
-import android.media.MediaPlayer
 import android.speech.tts.TextToSpeech
 import android.widget.Toast
 import java.util.Locale
 
 /**
- * Streams a single pronunciation clip at a time; starting a new one stops whatever was playing.
- * Falls back to on-device text-to-speech (see [speak]) for cards the free dictionary has no
- * recorded audio for - phrases, idioms, and full sentences never have one, and even single words
- * are missing one for some entries.
+ * Reads a card's term aloud with the device's built-in speech synthesizer. Used instead of the
+ * free dictionary's recorded pronunciation clips - those cover only some words, never phrases or
+ * sentences, and their links rot over time, so text-to-speech is the one path that reliably works
+ * for every card.
  */
 class AudioPlayer(context: Context) {
     private val appContext = context.applicationContext
 
-    private var mediaPlayer: MediaPlayer? = null
     private var textToSpeech: TextToSpeech? = null
     private var ttsState = TtsState.INITIALIZING
 
@@ -48,47 +45,8 @@ class AudioPlayer(context: Context) {
         }
     }
 
-    /**
-     * Plays a card's pronunciation: the recorded clip at [audioUrl] if there is one, otherwise
-     * [fallbackText] read aloud via text-to-speech in [languageCode] (ISO 639-1) - and also as a
-     * fallback if the clip itself turns out unplayable (the free dictionary's audio links do
-     * occasionally rot, independent of a card having one recorded at all).
-     */
-    fun pronounce(audioUrl: String?, fallbackText: String, languageCode: String) {
-        if (audioUrl.isNullOrBlank()) {
-            speak(fallbackText, languageCode)
-        } else {
-            play(audioUrl, onFailure = { speak(fallbackText, languageCode) })
-        }
-    }
-
-    private fun play(url: String, onFailure: () -> Unit) {
-        stop()
-        val player = MediaPlayer()
-        mediaPlayer = player
-        player.setAudioAttributes(
-            AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                .build(),
-        )
-        player.setOnPreparedListener { it.start() }
-        player.setOnCompletionListener { stop() }
-        player.setOnErrorListener { _, _, _ -> stop(); onFailure(); true }
-        try {
-            // Some pronunciation URLs saved before the parser started normalizing them are
-            // protocol-relative ("//host/…mp3") - fine in a browser, but MediaPlayer has no base
-            // scheme to resolve it against and fails silently. Assume https for those.
-            player.setDataSource(if (url.startsWith("//")) "https:$url" else url)
-            player.prepareAsync()
-        } catch (e: Exception) {
-            stop()
-            onFailure()
-        }
-    }
-
-    /** Reads [text] aloud using the device's built-in speech synthesizer, in [languageCode] (ISO 639-1). */
-    private fun speak(text: String, languageCode: String) {
+    /** Reads [text] aloud, in [languageCode] (ISO 639-1). */
+    fun speak(text: String, languageCode: String) {
         stop()
         when (ttsState) {
             TtsState.READY -> speakNow(text, languageCode)
@@ -116,8 +74,6 @@ class AudioPlayer(context: Context) {
     private fun toast(message: String) = Toast.makeText(appContext, message, Toast.LENGTH_LONG).show()
 
     fun stop() {
-        mediaPlayer?.release()
-        mediaPlayer = null
         textToSpeech?.stop()
         pendingSpeech = null
     }
