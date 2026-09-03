@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.speech.tts.TextToSpeech
+import android.widget.Toast
 import java.util.Locale
 
 /**
@@ -13,9 +14,11 @@ import java.util.Locale
  * are missing one for some entries.
  */
 class AudioPlayer(context: Context) {
+    private val appContext = context.applicationContext
+
     private var mediaPlayer: MediaPlayer? = null
     private var textToSpeech: TextToSpeech? = null
-    private var isTtsReady = false
+    private var ttsState = TtsState.INITIALIZING
 
     /**
      * A [speak] call that arrived before the synthesizer finished its (async, sometimes
@@ -25,10 +28,22 @@ class AudioPlayer(context: Context) {
      */
     private var pendingSpeech: Pair<String, String>? = null
 
+    // Both of these describe a static device condition, not a per-card failure - Study auto-plays
+    // on every card transition, so without this a broken/unconfigured TTS setup would toast once
+    // per card for the rest of the session instead of just informing the user once.
+    private var hasWarnedUnavailable = false
+    private val warnedMissingLanguages = mutableSetOf<String>()
+
     init {
-        textToSpeech = TextToSpeech(context.applicationContext) { status ->
-            isTtsReady = status == TextToSpeech.SUCCESS
-            if (isTtsReady) pendingSpeech?.let { (text, languageCode) -> speakNow(text, languageCode) }
+        textToSpeech = TextToSpeech(appContext) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                ttsState = TtsState.READY
+                pendingSpeech?.let { (text, languageCode) -> speakNow(text, languageCode) }
+            } else {
+                // No engine could be bound to at all - happens on devices with no TTS app
+                // installed/configured, distinct from a specific language's voice being missing.
+                ttsState = TtsState.UNAVAILABLE
+            }
             pendingSpeech = null
         }
     }
@@ -45,7 +60,11 @@ class AudioPlayer(context: Context) {
         )
         player.setOnPreparedListener { it.start() }
         player.setOnCompletionListener { stop() }
-        player.setOnErrorListener { _, _, _ -> stop(); true }
+        player.setOnErrorListener { _, _, _ ->
+            stop()
+            toast("Couldn't play this card's pronunciation clip - check your connection and try again.")
+            true
+        }
         try {
             // Some pronunciation URLs saved before the parser started normalizing them are
             // protocol-relative ("//host/…mp3") - fine in a browser, but MediaPlayer has no base
@@ -54,21 +73,37 @@ class AudioPlayer(context: Context) {
             player.prepareAsync()
         } catch (e: Exception) {
             stop()
+            toast("Couldn't play this card's pronunciation clip - check your connection and try again.")
         }
     }
 
     /** Reads [text] aloud using the device's built-in speech synthesizer, in [languageCode] (ISO 639-1). */
     fun speak(text: String, languageCode: String) {
         stop()
-        if (isTtsReady) speakNow(text, languageCode) else pendingSpeech = text to languageCode
+        when (ttsState) {
+            TtsState.READY -> speakNow(text, languageCode)
+            TtsState.INITIALIZING -> pendingSpeech = text to languageCode
+            TtsState.UNAVAILABLE ->
+                if (!hasWarnedUnavailable) {
+                    hasWarnedUnavailable = true
+                    toast("No text-to-speech engine found on this device - pronunciation isn't available.")
+                }
+        }
     }
 
     private fun speakNow(text: String, languageCode: String) {
         val tts = textToSpeech ?: return
         val languageResult = tts.setLanguage(Locale.forLanguageTag(languageCode))
-        if (languageResult == TextToSpeech.LANG_MISSING_DATA || languageResult == TextToSpeech.LANG_NOT_SUPPORTED) return
+        if (languageResult == TextToSpeech.LANG_MISSING_DATA || languageResult == TextToSpeech.LANG_NOT_SUPPORTED) {
+            if (warnedMissingLanguages.add(languageCode)) {
+                toast("No \"$languageCode\" voice installed for text-to-speech - check Settings > Languages & input > Text-to-speech.")
+            }
+            return
+        }
         tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "pronunciation")
     }
+
+    private fun toast(message: String) = Toast.makeText(appContext, message, Toast.LENGTH_LONG).show()
 
     fun stop() {
         mediaPlayer?.release()
@@ -76,4 +111,6 @@ class AudioPlayer(context: Context) {
         textToSpeech?.stop()
         pendingSpeech = null
     }
+
+    private enum class TtsState { INITIALIZING, READY, UNAVAILABLE }
 }
