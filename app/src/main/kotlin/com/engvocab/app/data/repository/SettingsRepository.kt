@@ -53,7 +53,7 @@ class SettingsRepository(private val context: Context) {
 
     /** Which side of the card Study shows first - remembered so it doesn't reset every session. */
     val studyMode: Flow<StudyMode> = context.dataStore.data.map { prefs ->
-        prefs[Keys.STUDY_MODE]?.let { runCatching { StudyMode.valueOf(it) }.getOrNull() } ?: StudyMode.TERM_FIRST
+        prefs[Keys.STUDY_MODE]?.let { runCatching { StudyMode.valueOf(it) }.getOrNull() } ?: StudyMode.MIXED
     }
 
     suspend fun setStudyMode(mode: StudyMode) {

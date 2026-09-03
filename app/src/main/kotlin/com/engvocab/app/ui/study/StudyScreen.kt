@@ -123,6 +123,14 @@ fun StudyScreen(onFinished: () -> Unit, onEditCard: (Long) -> Unit) {
             )
             Spacer(Modifier.height(8.dp))
             StudyModeSelector(mode = uiState.mode, onModeChange = viewModel::setMode)
+            if (uiState.mode == StudyMode.MIXED && !uiState.isSessionComplete) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "This card: ${modeLabel(uiState.activeMode)}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
 
         Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
@@ -131,7 +139,7 @@ fun StudyScreen(onFinished: () -> Unit, onEditCard: (Long) -> Unit) {
                 uiState.isSessionComplete -> SessionComplete(onFinished)
                 else -> uiState.currentCard?.let { card ->
                     FlashCard(
-                        mode = uiState.mode,
+                        mode = uiState.activeMode,
                         front = card.front,
                         back = card.back,
                         example = card.example,
@@ -175,7 +183,19 @@ private fun StudyModeSelector(mode: StudyMode, onModeChange: (StudyMode) -> Unit
             onClick = { onModeChange(StudyMode.LISTENING) },
             label = { Text("Listening") },
         )
+        FilterChip(
+            selected = mode == StudyMode.MIXED,
+            onClick = { onModeChange(StudyMode.MIXED) },
+            label = { Text("Mixed") },
+        )
     }
+}
+
+private fun modeLabel(mode: StudyMode): String = when (mode) {
+    StudyMode.TERM_FIRST -> "Term → meaning"
+    StudyMode.MEANING_FIRST -> "Meaning → term"
+    StudyMode.LISTENING -> "Listening"
+    StudyMode.MIXED -> "Mixed"
 }
 
 @Composable
@@ -221,7 +241,11 @@ private fun FlashCard(
     }
 }
 
-/** What's shown before flipping - depends on [mode], see [StudyMode]'s own doc for what each hides and why. */
+/**
+ * What's shown before flipping - depends on [mode], see [StudyMode]'s own doc for what each
+ * hides and why. [mode] here is always [StudyViewModel]'s resolved `activeMode`, so it's never
+ * [StudyMode.MIXED] in practice - that branch only exists to keep this `when` exhaustive.
+ */
 @Composable
 private fun CardPrompt(mode: StudyMode, front: String, back: String, phonetic: String?, onPlayPronunciation: () -> Unit) {
     when (mode) {
@@ -242,6 +266,8 @@ private fun CardPrompt(mode: StudyMode, front: String, back: String, phonetic: S
                 Icon(Icons.Filled.VolumeUp, contentDescription = "Play pronunciation", modifier = Modifier.size(32.dp))
             }
         }
+        StudyMode.MIXED ->
+            Text(front, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
     }
 }
 
