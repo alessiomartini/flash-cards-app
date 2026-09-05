@@ -123,10 +123,13 @@ fun StudyScreen(onFinished: () -> Unit, onEditCard: (Long) -> Unit) {
             )
             Spacer(Modifier.height(8.dp))
             StudyModeSelector(mode = uiState.mode, onModeChange = viewModel::setMode)
-            if (uiState.mode == StudyMode.MIXED && !uiState.isSessionComplete) {
+            if (uiState.mode != uiState.activeMode && !uiState.isSessionComplete) {
+                // Mixed always differs by design; a concrete mode differs only when this
+                // particular word can't be tested that way yet (not unlocked, or not due).
+                val reason = if (uiState.mode == StudyMode.MIXED) "" else " (${modeLabel(uiState.mode)} not ready for this word yet)"
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "This card: ${modeLabel(uiState.activeMode)}",
+                    "This card: ${modeLabel(uiState.activeMode)}$reason",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

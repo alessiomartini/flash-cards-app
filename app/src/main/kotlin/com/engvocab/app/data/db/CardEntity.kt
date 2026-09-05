@@ -10,6 +10,13 @@ import com.engvocab.core.model.TargetLanguage
 /**
  * A single flashcard, persisted with its full FSRS scheduling state embedded directly
  * (see [FsrsCardState]) so the scheduler can be handed the row as-is on every review.
+ *
+ * [fsrs] (term -> meaning) is the only direction a new card starts with. [fsrsMeaningFirst] and
+ * [fsrsListening] stay null - "not unlocked yet" - until [fsrs] first graduates into
+ * [com.engvocab.core.model.CardState.REVIEW], at which point
+ * [com.engvocab.app.data.repository.CardRepository.reviewCard] seeds both from it (see there for
+ * why). Each then keeps its own independent schedule: knowing a word one way doesn't mean
+ * knowing it another way equally well, but they aren't unrelated either.
  */
 @Entity(tableName = "cards")
 data class CardEntity(
@@ -34,6 +41,8 @@ data class CardEntity(
     /** The D1 `words.id` this card was synced from, or null for a card added manually on the phone. */
     val remoteId: Long? = null,
     @Embedded val fsrs: FsrsCardState = FsrsCardState(),
+    @Embedded(prefix = "meaning_") val fsrsMeaningFirst: FsrsCardState? = null,
+    @Embedded(prefix = "listening_") val fsrsListening: FsrsCardState? = null,
 ) {
     val tagList: List<String>
         get() = tags.split(",").map { it.trim() }.filter { it.isNotEmpty() }

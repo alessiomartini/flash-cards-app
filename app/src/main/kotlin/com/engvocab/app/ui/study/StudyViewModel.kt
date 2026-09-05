@@ -27,9 +27,11 @@ data class StudyUiState(
     val mode: StudyMode = StudyMode.MIXED,
     /**
      * How the current card is actually being presented - always one of TERM_FIRST/MEANING_FIRST/
-     * LISTENING, never MIXED. Equal to [mode] unless [mode] is MIXED, in which case this is a
-     * fresh random pick made once per card (see [StudyViewModel.pickActiveMode]) and held fixed
-     * until the card changes, so it doesn't shuffle under the learner mid-answer.
+     * LISTENING, never MIXED, and always one of that card's *due* directions (a not-yet-unlocked
+     * or not-yet-due direction can't be tested even if [mode] asks for it - see
+     * [StudyViewModel.pickActiveMode]). Equal to [mode] when [mode] is a due concrete direction;
+     * otherwise a pick among the due ones, held fixed until the card changes so it doesn't
+     * shuffle under the learner mid-answer.
      */
     val activeMode: StudyMode = StudyMode.TERM_FIRST,
 ) {
@@ -44,9 +46,6 @@ private data class PendingUndo(
     val queueIndex: Int,
     val previousActiveMode: StudyMode,
 )
-
-/** The presentations [StudyMode.MIXED] rolls between - every value except MIXED itself. */
-private val CONCRETE_MODES = StudyMode.entries.filter { it != StudyMode.MIXED }
 
 class StudyViewModel(
     private val cardRepository: CardRepository,
@@ -79,7 +78,7 @@ class StudyViewModel(
                     isSessionComplete = due.isEmpty(),
                     canUndo = false,
                     mode = mode,
-                    activeMode = pickActiveMode(mode),
+                    activeMode = due.firstOrNull()?.let { card -> pickActiveMode(card, mode) } ?: StudyMode.TERM_FIRST,
                 )
             }
             loadPreview()
@@ -87,20 +86,31 @@ class StudyViewModel(
         }
     }
 
-    /** Switches which side Study shows first, persisting the choice for next time. Re-rolls the current card's presentation right away. */
+    /** Switches which side Study shows first, persisting the choice for next time. Re-picks the current card's presentation right away. */
     fun setMode(mode: StudyMode) {
-        _uiState.update { it.copy(mode = mode, activeMode = pickActiveMode(mode)) }
+        _uiState.update { state ->
+            state.copy(mode = mode, activeMode = state.currentCard?.let { pickActiveMode(it, mode) } ?: state.activeMode)
+        }
         viewModelScope.launch { settingsRepository.setStudyMode(mode) }
     }
 
-    /** A concrete presentation for one card - [mode] itself, or a random one of the three when [mode] is MIXED. */
-    private fun pickActiveMode(mode: StudyMode): StudyMode =
-        if (mode == StudyMode.MIXED) CONCRETE_MODES.random() else mode
+    /**
+     * A concrete presentation for [card] right now: [mode] itself if it's one of that card's
+     * currently-due directions, otherwise (including whenever [mode] is MIXED) a random pick
+     * among whichever directions actually are due - a not-yet-unlocked or not-yet-due direction
+     * can't be tested no matter what's selected, see [CardEntity]'s own doc for why.
+     */
+    private fun pickActiveMode(card: CardEntity, mode: StudyMode): StudyMode {
+        val due = cardRepository.dueDirections(card)
+        if (mode in due) return mode
+        return due.randomOrNull() ?: StudyMode.TERM_FIRST
+    }
 
     private fun loadPreview() {
         val card = uiState.value.currentCard ?: return
+        val mode = uiState.value.activeMode
         viewModelScope.launch {
-            val preview = cardRepository.previewIntervals(card)
+            val preview = cardRepository.previewIntervals(card, mode)
             _uiState.update { it.copy(previewIntervals = preview) }
         }
     }
@@ -130,17 +140,18 @@ class StudyViewModel(
         val activeModeForCard = uiState.value.activeMode
         viewModelScope.launch {
             audioPlayer.stop()
-            val outcome = cardRepository.reviewCard(card, rating)
+            val outcome = cardRepository.reviewCard(card, rating, activeModeForCard)
             pendingUndo = PendingUndo(previousCard = card, logId = outcome.logId, queueIndex = index, previousActiveMode = activeModeForCard)
             val nextIndex = index + 1
             val done = nextIndex >= uiState.value.queue.size
-            _uiState.update {
-                it.copy(
+            _uiState.update { state ->
+                val nextCard = state.queue.getOrNull(nextIndex)
+                state.copy(
                     currentIndex = nextIndex,
                     isFlipped = false,
                     isSessionComplete = done,
                     canUndo = true,
-                    activeMode = if (done) it.activeMode else pickActiveMode(it.mode),
+                    activeMode = nextCard?.let { pickActiveMode(it, state.mode) } ?: state.activeMode,
                 )
             }
             if (!done) {
@@ -189,13 +200,14 @@ class StudyViewModel(
             val index = uiState.value.currentIndex
             val newQueue = uiState.value.queue.toMutableList().also { if (index in it.indices) it.removeAt(index) }
             val done = index >= newQueue.size
-            _uiState.update {
-                it.copy(
+            _uiState.update { state ->
+                val nextCard = newQueue.getOrNull(index)
+                state.copy(
                     queue = newQueue,
                     isFlipped = false,
                     isSessionComplete = done,
                     canUndo = false,
-                    activeMode = if (done) it.activeMode else pickActiveMode(it.mode),
+                    activeMode = nextCard?.let { pickActiveMode(it, state.mode) } ?: state.activeMode,
                 )
             }
             if (!done) {

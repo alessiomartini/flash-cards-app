@@ -28,10 +28,25 @@ interface CardDao {
     @Query("SELECT * FROM cards WHERE language = :language ORDER BY createdAt DESC")
     fun observeAllByLanguage(language: TargetLanguage): Flow<List<CardEntity>>
 
-    @Query("SELECT * FROM cards WHERE language = :language AND due <= :now ORDER BY due ASC")
+    // A card is due if ANY of its (unlocked) directions is due - see CardEntity's doc. meaning_/
+    // listening_ are only ever both null or both set together, so checking one state column is
+    // enough to know that direction is unlocked at all.
+    @Query(
+        "SELECT * FROM cards WHERE language = :language AND (" +
+            "due <= :now " +
+            "OR (meaning_state IS NOT NULL AND meaning_due <= :now) " +
+            "OR (listening_state IS NOT NULL AND listening_due <= :now)" +
+            ") ORDER BY due ASC",
+    )
     suspend fun getDueByLanguage(language: TargetLanguage, now: Long): List<CardEntity>
 
-    @Query("SELECT COUNT(*) FROM cards WHERE language = :language AND due <= :now")
+    @Query(
+        "SELECT COUNT(*) FROM cards WHERE language = :language AND (" +
+            "due <= :now " +
+            "OR (meaning_state IS NOT NULL AND meaning_due <= :now) " +
+            "OR (listening_state IS NOT NULL AND listening_due <= :now)" +
+            ")",
+    )
     suspend fun countDueByLanguage(language: TargetLanguage, now: Long): Int
 
     @Query("SELECT COUNT(*) FROM cards WHERE language = :language")

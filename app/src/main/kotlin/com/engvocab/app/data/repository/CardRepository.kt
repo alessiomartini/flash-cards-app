@@ -2,6 +2,7 @@ package com.engvocab.app.data.repository
 
 import com.engvocab.core.fsrs.FsrsScheduler
 import com.engvocab.core.importer.ImportSource
+import com.engvocab.core.model.CardState
 import com.engvocab.core.model.FsrsCardState
 import com.engvocab.core.model.Rating
 import com.engvocab.core.model.TargetLanguage
@@ -28,6 +29,27 @@ data class SyncResult(val added: Int, val updated: Int, val removed: Int)
 
 /** Outcome of one [CardRepository.reviewCard] call - enough to undo it via [CardRepository.undoReview]. */
 data class ReviewOutcome(val updatedCard: CardEntity, val logId: Long)
+
+/**
+ * A just-unlocked secondary direction starts at this fraction of the primary direction's
+ * demonstrated stability - a deliberate, tunable product choice (FSRS itself has no notion of
+ * cross-direction transfer), not starting from zero but not full credit either.
+ */
+private const val SECONDARY_DIRECTION_STABILITY_FACTOR = 0.5
+
+private fun CardEntity.fsrsFor(mode: StudyMode): FsrsCardState? = when (mode) {
+    StudyMode.TERM_FIRST -> fsrs
+    StudyMode.MEANING_FIRST -> fsrsMeaningFirst
+    StudyMode.LISTENING -> fsrsListening
+    StudyMode.MIXED -> null // not a real direction - callers always resolve MIXED before calling
+}
+
+private fun CardEntity.withFsrsFor(mode: StudyMode, newState: FsrsCardState): CardEntity = when (mode) {
+    StudyMode.TERM_FIRST -> copy(fsrs = newState)
+    StudyMode.MEANING_FIRST -> copy(fsrsMeaningFirst = newState)
+    StudyMode.LISTENING -> copy(fsrsListening = newState)
+    StudyMode.MIXED -> this
+}
 
 /** Wires the Room DAOs together with the FSRS scheduler; every card update goes through here. */
 class CardRepository(
@@ -81,26 +103,67 @@ class CardRepository(
         FsrsScheduler(desiredRetention = settingsRepository.desiredRetention.first())
 
     /** Predicted interval for each of the 4 ratings, for the "Again <10m · Good 3d · Easy 7d" preview row. */
-    suspend fun previewIntervals(card: CardEntity, now: Long = System.currentTimeMillis()): Map<Rating, Long> =
-        scheduler().previewIntervals(card.fsrs, now)
+    suspend fun previewIntervals(card: CardEntity, mode: StudyMode, now: Long = System.currentTimeMillis()): Map<Rating, Long> =
+        scheduler().previewIntervals(card.fsrsFor(mode) ?: card.fsrs, now)
 
-    /**
-     * Starting FSRS state for an imported card. Cards flagged [knownAlready] (e.g. Duocards'
-     * "fully learned" status) get two synthetic "Good" reviews applied - enough to walk a
-     * brand-new card through both default learning steps into long-term review - so they
-     * start scheduled like an already-mastered card instead of making the learner redo the
-     * whole brand-new-card ramp-up.
-     */
-    suspend fun initialFsrsState(knownAlready: Boolean, now: Long = System.currentTimeMillis()): FsrsCardState {
-        if (!knownAlready) return FsrsCardState()
-        val fsrsScheduler = scheduler()
-        val afterFirstGood = fsrsScheduler.review(FsrsCardState(), Rating.GOOD, now).card
-        return fsrsScheduler.review(afterFirstGood, Rating.GOOD, now).card
+    /** Which of [card]'s unlocked directions are due right now - never empty for a card the due-cards query returned. */
+    fun dueDirections(card: CardEntity, now: Long = System.currentTimeMillis()): List<StudyMode> = buildList {
+        if (card.fsrs.due <= now) add(StudyMode.TERM_FIRST)
+        card.fsrsMeaningFirst?.takeIf { it.due <= now }?.let { add(StudyMode.MEANING_FIRST) }
+        card.fsrsListening?.takeIf { it.due <= now }?.let { add(StudyMode.LISTENING) }
     }
 
-    suspend fun reviewCard(card: CardEntity, rating: Rating, now: Long = System.currentTimeMillis()): ReviewOutcome {
-        val result = scheduler().review(card.fsrs, rating, now)
-        val updated = card.copy(fsrs = result.card)
+    private data class InitialFsrsStates(val termFirst: FsrsCardState, val meaningFirst: FsrsCardState?, val listening: FsrsCardState?)
+
+    /**
+     * Starting FSRS state(s) for an imported card. Cards flagged [knownAlready] (e.g. Duocards'
+     * "fully learned" status) get two synthetic "Good" reviews applied to the primary direction -
+     * enough to walk a brand-new card through both default learning steps into long-term review -
+     * so it starts scheduled like an already-mastered card instead of making the learner redo the
+     * whole brand-new-card ramp-up. That graduates it into REVIEW exactly like an organic pass
+     * would, so the other two directions unlock immediately too, seeded the normal way.
+     */
+    private suspend fun initialFsrsStates(knownAlready: Boolean, now: Long = System.currentTimeMillis()): InitialFsrsStates {
+        if (!knownAlready) return InitialFsrsStates(FsrsCardState(), null, null)
+        val fsrsScheduler = scheduler()
+        val afterFirstGood = fsrsScheduler.review(FsrsCardState(), Rating.GOOD, now).card
+        val termFirst = fsrsScheduler.review(afterFirstGood, Rating.GOOD, now).card
+        return InitialFsrsStates(termFirst, unlockSecondaryDirection(termFirst, now), unlockSecondaryDirection(termFirst, now))
+    }
+
+    /**
+     * Starting point for a direction the moment it unlocks: not a brand-new card (no
+     * relearning-steps ramp-up) but not full credit either - [SECONDARY_DIRECTION_STABILITY_FACTOR]
+     * of [primary]'s demonstrated stability, same difficulty (which reflects the word itself more
+     * than the direction being tested), due immediately so it joins the Mixed rotation right away.
+     */
+    private fun unlockSecondaryDirection(primary: FsrsCardState, now: Long): FsrsCardState {
+        val primaryStability = checkNotNull(primary.stability) { "A graduated (REVIEW) card must have a stability" }
+        return FsrsCardState(
+            state = CardState.REVIEW,
+            step = null,
+            stability = primaryStability * SECONDARY_DIRECTION_STABILITY_FACTOR,
+            difficulty = primary.difficulty,
+            due = now,
+            lastReview = now,
+            reps = 0,
+            lapses = 0,
+        )
+    }
+
+    suspend fun reviewCard(card: CardEntity, rating: Rating, mode: StudyMode, now: Long = System.currentTimeMillis()): ReviewOutcome {
+        val result = scheduler().review(card.fsrsFor(mode) ?: card.fsrs, rating, now)
+        var updated = card.withFsrsFor(mode, result.card)
+
+        // The first time the primary direction graduates out of initial learning, unlock the
+        // other two so Mixed can start drilling this word both ways - see unlockSecondaryDirection.
+        if (mode == StudyMode.TERM_FIRST && result.card.state == CardState.REVIEW && card.fsrsMeaningFirst == null) {
+            updated = updated.copy(
+                fsrsMeaningFirst = unlockSecondaryDirection(result.card, now),
+                fsrsListening = unlockSecondaryDirection(result.card, now),
+            )
+        }
+
         cardDao.update(updated)
         val logId = reviewLogDao.insert(
             ReviewLogEntity(
@@ -157,6 +220,7 @@ class CardRepository(
             val language = TargetLanguage.entries.find { it.apiCode == remote.language } ?: continue
             val existing = cardDao.getByRemoteId(remote.id)
             if (existing == null) {
+                val initial = initialFsrsStates(remote.isKnownAlready)
                 cardDao.insert(
                     CardEntity(
                         front = remote.front,
@@ -170,7 +234,9 @@ class CardRepository(
                         source = runCatching { ImportSource.valueOf(remote.source) }.getOrDefault(ImportSource.MANUAL),
                         sourceLabel = remote.sourceLabel,
                         remoteId = remote.id,
-                        fsrs = initialFsrsState(remote.isKnownAlready),
+                        fsrs = initial.termFirst,
+                        fsrsMeaningFirst = initial.meaningFirst,
+                        fsrsListening = initial.listening,
                     ),
                 )
                 added++
