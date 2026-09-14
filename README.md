@@ -1,5 +1,16 @@
 # EngVocab
 
+> **Status: on hold.** This project ended up reinventing a good chunk of what
+> [Anki](https://apps.ankiweb.net/) already does well (spaced repetition, note types, reversed
+> cards, import/export) - once that became clear, the vocabulary was exported to Anki and that's
+> what's actually used day to day now (see "Exporting to Anki" below). This repo isn't
+> abandoned - it's kept around because Anki, being general-purpose, doesn't cover some
+> language-learning-specific ideas this app explored (e.g. tracking term→meaning, meaning→term,
+> and listening recall as separate-but-correlated schedules per word - see "The memorization
+> method: FSRS" below). If one of those ideas gets fleshed out enough to be worth a dedicated app
+> again, development picks back up here. Until then, treat it as a working reference/prototype,
+> not an actively maintained app.
+
 An Android flashcard app for growing your vocabulary - words, phrasal verbs, idioms, and
 expressions - in English, German, French, or Dutch, translated to Italian. No ads, no card
 limits, local, free, open source. Switch which language you're studying from a chip on the
@@ -87,6 +98,8 @@ cli/    computer-side bulk-import tool (plain JVM), depends on :core. See "Impor
         the online database, no adb, no in-app file picker involved.
 web/    web/stats/ is a sibling website (Cloudflare Pages) showing learning stats read
         from the same D1 database. See "Stats site" below.
+scripts/export_to_anki.py  one-off Python script, no deps beyond stdlib - see "Exporting
+        to Anki" below.
 ```
 
 The critical logic (scheduling algorithm, parsing) lives in `:core`, with no Android
@@ -239,6 +252,28 @@ German, and French - it doesn't publish a Dutch dictionary, so Dutch cards only 
 translation) and [MyMemory](https://mymemory.translated.net) for the Italian translation,
 for all four languages. You can turn this off in Settings. Note: MyMemory has a daily
 free-usage cap.
+
+## Exporting to Anki
+
+```bash
+CF_ACCOUNT_ID="..." CF_D1_DATABASE_ID="..." CF_API_TOKEN="..." \
+    python3 scripts/export_to_anki.py en engvocab-anki-import.txt
+```
+
+Same three Cloudflare credentials as the `:cli` tool above (an API token with D1:Edit is
+enough, this only reads). `en`/`de`/`fr`/`nl` selects the language; the output is a plain text
+file using [Anki's text-file import format](https://docs.ankiweb.net/importing/text-files.html)
+- open it in Anki (**File → Import**) and it's picked up automatically, no manual field mapping.
+Each word becomes a **Basic (and reversed card)** note (built into Anki), so importing creates
+both the term→meaning and meaning→term cards from one row - the same duality this app's Study
+modes explored.
+
+What doesn't carry over: FSRS review history (Anki has its own scheduler with no way to import
+stability/difficulty from a text file - every card starts "new" there; if you don't want to
+redo the whole learning ramp-up, select them all after import and use Anki's "set as reviewed"
+style bulk actions), listening-only cards (this app no longer stores audio files, just
+on-device TTS - an Anki add-on like AwesomeTTS can fill that gap), and any card added manually
+on a phone and never synced up (cloud sync is one-directional, see above).
 
 ## Stats site
 

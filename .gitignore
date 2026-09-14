@@ -13,3 +13,6 @@
 /core/build/
 /cli/build/
 .kotlin/
+
+# Python (scripts/export_to_anki.py)
+__pycache__/
