@@ -12,10 +12,10 @@ actively maintained app. Concretely, this means:
 - Bug fixes, doc updates, and small clarifications are fine on request.
 - Dependencies (Gradle plugin/library versions in `app/build.gradle.kts`,
   `core/build.gradle.kts`, `cli/build.gradle.kts`) are intentionally **not kept up to
-  date** while on hold - see FUTURE-ARCHITECTURE.md for the reasoning. Don't bump them
+  date** while on hold - see ROADMAP.md for the reasoning. Don't bump them
   incidentally as part of an unrelated change; only touch them if Alessio asks or the
   project comes off hold.
-- See FUTURE-ARCHITECTURE.md for the full history of *why* it's on hold and what was left
+- See ROADMAP.md for the full history of *why* it's on hold and what was left
   half-built.
 
 ## Project
@@ -36,16 +36,19 @@ surfaces. Keep platform-independent logic in the appropriate shared module.
 - Test English-vocabulary changes with representative valid and invalid cases.
 - Inspect `git diff`, Gradle output, and repository status before committing.
 
-## Roadmap e progressi
+## Roadmap, idee e progressi
 
-Questo progetto è tracciato in https://alessiomartini.github.io/projects-overview/ tramite il file `ROADMAP.md`
-nella root del repo. Mantienilo aggiornato:
+`ROADMAP.md` nella root è l'**unico** file per todo, idee, decisioni e diario del progetto
+(niente `FUTURE-ARCHITECTURE.md`, `IDEE.md`, `TODO.md`). È letto da https://alessiomartini.github.io/projects-overview/.
+Sezioni: `## <fase>` (checkbox, contano nella percentuale), `## Idee` (checkbox, non contano),
+`## Decisioni e cose provate` (prosa: scartato/rimandato e perché, provato e annullato, limiti e bug noti), `## Log`.
 
 - Alla fine di ogni sessione di lavoro (prima del commit finale), aggiorna `ROADMAP.md`:
   - spunta (`- [x]`) i punti completati in questa sessione;
-  - aggiungi come `- [ ]` i nuovi compiti emersi, nella fase giusta (titoli `##`);
-  - aggiungi in cima alla sezione `## Log` una riga `- AAAA-MM-GG: <cosa è stato fatto, in una frase>`
+  - aggiungi come `- [ ]` i nuovi compiti nella fase giusta, e le idee non decise in `## Idee`;
+  - annota in `## Decisioni e cose provate` ciò che è stato scartato, rimandato o annullato, col perché;
+  - aggiungi in cima a `## Log` una riga `- AAAA-MM-GG: <cosa è stato fatto, in una frase>`
     (se esiste già una riga con la data di oggi, estendila invece di crearne un'altra).
 - Non riscrivere né riordinare le voci esistenti senza motivo; non cancellare le voci completate.
-- Se `ROADMAP.md` non esiste, crealo con le fasi `## ...`, le checkbox e una sezione `## Log`.
+- Se `ROADMAP.md` non esiste, crealo da `templates/ROADMAP.md` di projects-overview.
 - Includi l'aggiornamento di `ROADMAP.md` nello stesso commit del lavoro.
