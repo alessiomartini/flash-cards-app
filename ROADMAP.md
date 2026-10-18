@@ -51,7 +51,7 @@ actively using day to day. Revisit when the project comes off hold.
 
 Several of Alessio's other sites (`ear-training`, `geopolitics-atlas`, `eating-amsterdam`)
 have a small widget letting a visitor leave a free-text note, stored in a Cloudflare D1
-database (own dedicated D1 for each, so far — see those repos' own FUTURE-ARCHITECTURE.md
+database (own dedicated D1 for each, so far — see those repos' own ROADMAP.md
 for a discussion of a possible database shared across sites instead of one per site).
 
 This repo deliberately does **not** get that feature while on hold: it has no public
